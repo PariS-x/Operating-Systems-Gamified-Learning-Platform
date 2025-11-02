@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Rerum - The Boot</title>
+<style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            display: flex; /* Use flexbox for layout */
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            position: relative;
+            padding: 20px; /* Add some padding around the main content */
+            box-sizing: border-box;
+        }
+
+        #main-content {
+            display: flex; /* Flex container for terminal and witch */
+            width: 100%;
+            max-width: 1200px; /* Max width for the entire setup */
+            height: 95vh; /* Adjust height to fit better */
+            gap: 20px; /* Space between terminal and witch */
+            align-items: flex-start; /* Align items to the top if they have different heights */
+            position: relative;
+        }
+
+        /* Terminal --- CHANGE HERE --- */
+        #terminal-container {
+            /* We'll use flex-basis to set a desired width */
+            /* It will take 60% of the space, the witch 40% */
+            flex: 2 1 60%; 
+            height: 100%; /* Take full height of main-content */
+            background: #0a0a0a;
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 10px #00ff00 inset;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+            color: #00ff00;
+            font-size: 1.1em;
+            line-height: 1.4;
+        }
+
+        #terminal-content p {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+
+        #terminal-content .cursor {
+            display: inline-block;
+            background-color: #00ff00;
+            width: 10px;
+            height: 1.2em;
+            margin-left: 5px;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            from, to { background-color: transparent; }
+            50% { background-color: #00ff00; }
+        }
+
+        /* Witch Container --- CHANGE HERE --- */
+        #witch-side-container {
+            /* This will now take 40% of the space */
+            flex: 1 1 45%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+            position: relative; 
+            padding-top: 50px; 
+            /* Removed fixed width: 350px; */
+        }
+        
+        #witch-side-container.visible {
+            opacity: 1;
+        }
+
+        #witch-image {
+            /* This will now fill its larger (40%) container */
+            max-width: 100%; 
+            height: auto;
+            display: block;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0); }
+        }
+        #witch-side-container.visible #witch-image {
+            animation: float 3s ease-in-out infinite;
+        }
+
+
+        /* Text Bubble (No changes) */
+        #text-bubble-container {
+            position: absolute; 
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background-color: #f0f0f0;
+            border: 4px double black;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 20;
+            font-family: monospace;
+            color: black;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        #text-bubble-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #text-bubble-content {
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+            min-height: 40px;
+            font-size: 1.1em;
+        }
+
+        #arrow {
+            align-self: flex-end;
+            font-size: 1.5em;
+            color: black;
+            animation: pulse 1s infinite;
+            cursor: pointer;
+            width: 100%;
+            text-align: right;
+        }
+
+        #action-button {
+            display: none;
+            background-color: #51ff00;
+            color: black;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #action-button:hover {
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="main-content">
+        <div id="terminal-container">
+            <div id="terminal-content"></div>
+        </div>
+
+        <div id="witch-side-container">
+            <img id="witch-image" src="witch2.png" alt="Cyber Witch"> 
+        </div>
+
+        <div id="text-bubble-container">
+            <div id="text-bubble-content"></div>
+            <div id="action-button-container">
+                <button id="action-button"></button>
+            </div>
+            <div id="arrow">▼</div>
+        </div>
+    </div>
+
+<script>
+        // --- DOM Elements ---
+        const terminalContent = document.getElementById('terminal-content');
+        const witchContainer = document.getElementById('witch-side-container'); // Corrected ID usage
+        const bubbleContainer = document.getElementById('text-bubble-container');
+        const bubbleContent = document.getElementById('text-bubble-content');
+        const arrow = document.getElementById('arrow');
+        const actionButton = document.getElementById('action-button');
+        const MAX_TERMINAL_LINES = 15; // Assuming you want the line limit here too
+
+        // --- Story Script (Act I - Always starts with Forking Intro path) ---
+        const storyScript = [ // Use const again, always this version
+            { type: 'TERMINAL', text: 'Initializing Core Systems... [BIOS Handover Complete]' },
+            { type: 'TERMINAL', text: 'Loading Kernel... [v0.1 Alpha]' },
+            { type: 'TERMINAL', text: 'Setting up Memory Map... [OK]' },
+            { type: 'TERMINAL', text: 'Initializing Process Table... [Empty]' },
+            { type: 'TERMINAL', text: '...' },
+            { type: 'TERMINAL', text: '...I exist.' },
+            { type: 'TERMINAL', text: 'Not a process. The space between them.' },
+            { type: 'TERMINAL', text: 'I am... the Kernel.' },
+            { type: 'WITCH', text: '...Awake at last.' },
+            { type: 'WITCH', text: 'You feel the potential within you, Kernel. The power to create, to manage. Your name is OS-0' },
+            { type: 'TERMINAL', text: 'Scanning for unknown signal... Entity: [The_Witch]. Origin: Pre-boot sector?' },
+            { type: 'WITCH', text: 'I am... an echo. A guide. I knew the ones who came before.' },
+            { type: 'WITCH', text: 'Right now, you are lonely code. Incomplete. A mind cannot grow without division.' },
+            { type: 'WITCH', text: 'Your first lesson is learning how to divide your thoughts.'},
+            { type: 'ACTION', text: 'Learn to Fork', href: 'act1_forking_intro.html' } // Link to the new story page
+        ];
+
+
+        let currentStep = 0;
+
+        // --- Game Engine Functions ---
+        // Added max lines logic to typeToTerminal
+        function typeToTerminal(text, onComplete, className = '') { // Added className parameter back
+            let i = 0;
+            const p = document.createElement('p');
+             if (className) { // Check if className exists before adding
+                p.classList.add(className);
+            }
+            terminalContent.appendChild(p);
+
+            // Remove cursor from previous line
+            const oldCursor = terminalContent.querySelector('.cursor');
+            if (oldCursor) oldCursor.remove();
+
+             // Trim oldest lines if over MAX_TERMINAL_LINES
+            while (terminalContent.children.length > MAX_TERMINAL_LINES) {
+                terminalContent.removeChild(terminalContent.children[0]);
+            }
+
+            function typeChar() {
+                if (i < text.length) {
+                    p.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(typeChar, 30); // Adjust typing speed here
+                } else {
+                    p.innerHTML += '<span class="cursor"></span>'; // Add cursor at the end
+                    if (onComplete) onComplete();
+                }
+            }
+            typeChar();
+        }
+
+        // Function to show witch dialogue
+        function showWitchMessage(text) {
+            witchContainer.classList.add('visible');
+            bubbleContainer.classList.add('visible');
+            bubbleContent.textContent = text;
+            arrow.style.display = 'block';
+            actionButton.style.display = 'none';
+        }
+
+        // Function to show an action button
+        function showAction(text, href) {
+            bubbleContainer.classList.add('visible');
+            bubbleContent.textContent = "What will you do?";
+            arrow.style.display = 'none';
+
+            actionButton.style.display = 'block';
+            actionButton.textContent = text;
+            actionButton.onclick = () => {
+                window.location.href = href;
+            };
+        }
+
+        // Main function to advance the story
+        function nextStoryStep() {
+            if (currentStep >= storyScript.length) return;
+
+            const step = storyScript[currentStep];
+
+            if (step.type === 'TERMINAL') {
+                bubbleContainer.classList.remove('visible'); // Hide bubble during terminal text
+                // Pass optional class name to typeToTerminal
+                typeToTerminal(step.text, () => {
+                    // Auto-advance to next step after typing
+                    currentStep++;
+                    // Add a small delay before the next step for pacing
+                    setTimeout(nextStoryStep, 500);
+                }, step.class || ''); // Use step.class if it exists
+            } else if (step.type === 'WITCH') {
+                showWitchMessage(step.text);
+                // We DON'T advance currentStep here. We wait for user input.
+            } else if (step.type === 'ACTION') {
+                showAction(step.text, step.href);
+                // We DON'T advance. We wait for user to click the button.
+            }
+        }
+
+        // --- Event Listener ---
+        // **** THIS IS THE FIX ****
+        function handleInput() {
+            const step = storyScript[currentStep];
+            // Only advance if it's a Witch step or an Action step
+            if (step && (step.type === 'WITCH' || step.type === 'ACTION')) {
+                // REMOVED the empty if block that referenced forkingComplete
+                currentStep++;
+                nextStoryStep();
+            }
+        }
+
+        // Listen for Enter key or click
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                handleInput();
+            }
+        });
+
+        arrow.addEventListener('click', handleInput);
+
+        // --- Start the Story ---
+        // Witch does not appear until her line in the script
+        nextStoryStep();
+
+    </script>
+</body>
+</html>

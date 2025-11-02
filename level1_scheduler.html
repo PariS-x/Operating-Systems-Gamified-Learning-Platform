@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Act I: The Scheduling Trial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #071228; color: #E5E7EB; }
+        .panel, .queue-container, .process-card, .inspector-panel, .metrics-card, .modal {
+            background-color: #1F2937; border: 1px solid #374151; border-radius: 0.75rem;
+        }
+        .process-card { transition: all 0.3s ease-in-out; cursor: pointer; }
+        .process-card:hover { transform: translateY(-4px); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+        .process-card.interactive { border-left: 5px solid #3498db; }
+        .process-card.batch { border-left: 5px solid #e67e22; }
+        .process-card.unclassified { border-left: 5px solid #95A5A6; }
+
+        #inspector-panel { 
+            transition: transform 0.3s ease-in-out; transform: translateX(100%); 
+        }
+        #inspector-panel.visible { transform: translateX(0); }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); z-index: 99;
+        }
+        
+        /* Feedback for correct/incorrect choices */
+        .flash-correct { animation: flash-green 0.5s; }
+        .flash-error { animation: flash-red 0.5s; }
+        @keyframes flash-green { 
+            0% { background-color: #071228; } 
+            50% { background-color: #059669; }
+            100% { background-color: #071228; }
+        }
+        @keyframes flash-red { 
+            0% { background-color: #071228; } 
+            50% { background-color: #DC2626; }
+            100% { background-color: #071228; }
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <div id="win-modal-overlay" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-green-400 mb-4">Trial Complete</h2>
+            <p class="text-gray-300 mb-6">You have learned to distinguish the heartbeats. The system is stable. The Witch is pleased with your progress.</p>
+            <a href="act2_story.html" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Return to Core</a>
+        </div>
+    </div>
+    <div id="lose-modal-overlay" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-red-400 mb-4">System Unstable</h2>
+            <p class="text-gray-300 mb-6">Too many misclassifications have corrupted the queues. The trial must be re-initialized.</p>
+            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Retry Trial</button>
+        </div>
+    </div>
+
+    <header class="text-center mb-6 relative">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white tracking-wider">Act I: The Scheduling Trial</h1>
+        <p class="text-gray-400">Your first test, OS-0. Classify the processes.</p>
+        <div class="absolute top-0 right-0">
+             <a href="lesson_scheduler.html" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full text-sm transition-colors flex items-center" title="Go to Practice Sandbox">Practice Sandbox</a>
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <aside id="control-column" class="lg:col-span-1 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4 text-center">Trial Controls</h2>
+                <button id="start-trial-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Trial</button>
+            </div>
+            
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">Trial Status</h2>
+                <p class="text-lg text-gray-400 mb-2">Objective: Correctly classify 10 processes.</p>
+                <div class="space-y-3">
+                    <div>
+                        <p class="font-bold text-green-400">Correctly Classified</p>
+                        <p class="text-2xl"><span id="score-correct">0</span> / 10</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-red-400">System Errors</p>
+                        <p class="text-2xl"><span id="score-errors">0</span> / 5</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="queue-container p-4">
+                    <h2 class="text-xl font-semibold text-center mb-4 text-gray-300">New Process Queue</h2>
+                    <div id="new-process-queue" class="space-y-3 min-h-[200px]"></div>
+                </div>
+                
+                <div class="queue-container p-4">
+                    <h2 class="text-xl font-semibold text-center mb-4 text-orange-300">Batch Queue</h2>
+                    <div id="batch-queue" class="space-y-3 min-h-[200px]"></div>
+                </div>
+            </div>
+             <div class="queue-container p-4">
+                <h2 class="text-xl font-semibold text-center mb-4 text-blue-300">Interactive Queue</h2>
+                <div id="interactive-queue" class="space-y-3 min-h-[100px]"></div>
+            </div>
+        </section>
+    </main>
+    
+    <div id="inspector-panel" class="inspector-panel fixed top-0 right-0 h-full w-full max-w-sm shadow-lg p-6 z-50">
+        <button id="close-inspector-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+        <h2 class="text-2xl font-bold mb-4">Process Inspector</h2>
+        <div id="inspector-content">
+            </div>
+        <div id="inspector-actions" class="mt-6 pt-4 border-t border-gray-600 space-y-3">
+            <h3 class="text-lg font-semibold text-center">Witch's Query: What is this process?</h3>
+            </div>
+    </div>
+
+    <script type="module">
+        const HISTORY_LEN = 5;
+        const WIN_SCORE = 10;
+        const LOSE_SCORE = 5;
+        
+        let appState = {
+            nextPid: 101,
+            scoreCorrect: 0,
+            scoreErrors: 0,
+            trialStarted: false
+        };
+        
+        let processes = { 
+            all: new Map(), 
+            newQueue: [], 
+            interactiveQueue: [], 
+            batchQueue: [] 
+        };
+
+        const ProcessBehavior = { INTERACTIVE: "True Interactive", BATCH: "True Batch" };
+        
+        // Simplified Process class
+        class Process {
+            constructor(pid, trueBehavior) {
+                this.pid = pid;
+                this.trueBehavior = trueBehavior;
+                this.predictedType = "Unclassified";
+                
+                // Generate representative behavior
+                if (trueBehavior === ProcessBehavior.INTERACTIVE) {
+                    this.avgCpuBurst = Math.floor(Math.random() * 20 + 5); // 5-25ms
+                    this.avgIoOps = Math.floor(Math.random() * 5 + 4);    // 4-9 ops
+                } else {
+                    this.avgCpuBurst = Math.floor(Math.random() * 60 + 40); // 40-100ms
+                    this.avgIoOps = Math.floor(Math.random() * 3);     // 0-2 ops
+                }
+                
+                // Create sample history for the inspector charts
+                this.cpuBurstHistory = Array(HISTORY_LEN).fill(0).map(() => Math.max(0, this.avgCpuBurst + (Math.random()*10-5)));
+                this.ioOpsHistory = Array(HISTORY_LEN).fill(0).map(() => Math.max(0, this.avgIoOps + (Math.random()*2-1)));
+            }
+        }
+
+        // --- DOM Elements ---
+        const dom = {
+            startTrialBtn: document.getElementById('start-trial-btn'),
+            newQueueDiv: document.getElementById('new-process-queue'),
+            interactiveQueueDiv: document.getElementById('interactive-queue'),
+            batchQueueDiv: document.getElementById('batch-queue'),
+            inspectorPanel: document.getElementById('inspector-panel'),
+            inspectorContent: document.getElementById('inspector-content'),
+            inspectorActions: document.getElementById('inspector-actions'),
+            closeInspectorBtn: document.getElementById('close-inspector-btn'),
+            scoreCorrect: document.getElementById('score-correct'),
+            scoreErrors: document.getElementById('score-errors'),
+            winModal: document.getElementById('win-modal-overlay'),
+            loseModal: document.getElementById('lose-modal-overlay'),
+            body: document.body
+        };
+
+        // --- Game Logic ---
+
+        function startTrial() {
+            if (appState.trialStarted) return;
+            appState.trialStarted = true;
+            dom.startTrialBtn.textContent = "Trial in Progress...";
+            dom.startTrialBtn.disabled = true;
+            spawnNewChallenge();
+        }
+
+        function spawnNewChallenge() {
+            // Alternate between spawning Interactive and Batch processes
+            const behavior = (Math.random() < 0.5) ? ProcessBehavior.BATCH : ProcessBehavior.INTERACTIVE;
+            const newProcess = new Process(appState.nextPid++, behavior);
+            
+            processes.all.set(newProcess.pid, newProcess);
+            processes.newQueue.push(newProcess.pid); // Add to the "New" queue
+            
+            updateUI();
+        }
+
+        function showInspector(process) {
+            dom.inspectorContent.innerHTML = `
+                <p class="mb-2"><strong>PID:</strong> ${process.pid}</p>
+                <p class="mb-4"><strong>Status:</strong> Awaiting Classification</p>
+                
+                <h3 class="font-semibold">Behavior Analysis</h3>
+                <p class="text-sm text-gray-400 mb-2">The Witch shows you the process's recent history:</p>
+                
+                <p class="mb-2"><strong>Avg. CPU Burst:</strong> ${process.avgCpuBurst}ms</p>
+                <p class="mb-2"><strong>Avg. I/O Operations:</strong> ${process.avgIoOps} ops/cycle</p>
+                
+                <h3 class="font-semibold mt-4">CPU Burst History (ms)</h3>
+                <div class="flex items-end h-24 bg-gray-700 p-2 rounded-md space-x-1">${process.cpuBurstHistory.map(v => `<div class="bg-blue-500 w-full" style="height: ${v}%"></div>`).join('')}</div>
+                
+                <h3 class="font-semibold mt-4">I/O Ops History</h3>
+                <div class="flex items-end h-24 bg-gray-700 p-2 rounded-md space-x-1">${process.ioOpsHistory.map(v => `<div class="bg-green-500 w-full" style="height: ${v*10}%"></div>`).join('')}</div>
+            `;
+            
+            // Add classification buttons
+            dom.inspectorActions.innerHTML = `
+                <h3 class="text-lg font-semibold text-center text-cyan-300">Your Decision, OS-0:</h3>
+                <button id="classify-interactive-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Classify as Interactive</button>
+                <button id="classify-batch-btn" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Classify as Batch</button>
+            `;
+            
+            // Add listeners to the new buttons
+            document.getElementById('classify-interactive-btn').onclick = () => handleClassification(process, 'Interactive');
+            document.getElementById('classify-batch-btn').onclick = () => handleClassification(process, 'Batch');
+
+            dom.inspectorPanel.classList.add('visible');
+        }
+
+        function handleClassification(process, chosenType) {
+            const trueLabel = (process.trueBehavior === ProcessBehavior.INTERACTIVE) ? 'Interactive' : 'Batch';
+            
+            // Remove process from newQueue
+            processes.newQueue = processes.newQueue.filter(pid => pid !== process.pid);
+            
+            if (chosenType === trueLabel) {
+                // CORRECT
+                appState.scoreCorrect++;
+                process.predictedType = chosenType;
+                dom.body.classList.add('flash-correct');
+                setTimeout(() => dom.body.classList.remove('flash-correct'), 500);
+            } else {
+                // INCORRECT
+                appState.scoreErrors++;
+                process.predictedType = chosenType; // Still move it to where user sent it
+                dom.body.classList.add('flash-error');
+                setTimeout(() => dom.body.classList.remove('flash-error'), 500);
+            }
+            
+            // Move process to its (chosen) destination queue
+            if (chosenType === 'Interactive') {
+                processes.interactiveQueue.push(process.pid);
+            } else {
+                processes.batchQueue.push(process.pid);
+            }
+            
+            closeInspector();
+            updateUI();
+            checkWinLossCondition();
+        }
+
+        function checkWinLossCondition() {
+            if (appState.scoreCorrect >= WIN_SCORE) {
+                // WIN
+                dom.winModal.classList.remove('hidden');
+            } else if (appState.scoreErrors >= LOSE_SCORE) {
+                // LOSE
+                dom.loseModal.classList.remove('hidden');
+            } else {
+                // CONTINUE
+                spawnNewChallenge();
+            }
+        }
+        
+        function closeInspector() {
+            dom.inspectorPanel.classList.remove('visible');
+            dom.inspectorContent.innerHTML = '';
+            dom.inspectorActions.innerHTML = '';
+        }
+
+        function updateUI() {
+            // Update scores
+            dom.scoreCorrect.textContent = appState.scoreCorrect;
+            dom.scoreErrors.textContent = appState.scoreErrors;
+            
+            // Render Queues
+            renderQueue(dom.newQueueDiv, processes.newQueue, 'unclassified');
+            renderQueue(dom.interactiveQueueDiv, processes.interactiveQueue, 'interactive');
+            renderQueue(dom.batchQueueDiv, processes.batchQueue, 'batch');
+        }
+
+        function renderQueue(queueDiv, processList, defaultClass) {
+            queueDiv.innerHTML = ''; // Clear queue
+            processList.forEach(pid => {
+                const p = processes.all.get(pid);
+                const card = document.createElement('div');
+                const typeClass = p.predictedType === 'Unclassified' ? defaultClass : p.predictedType.toLowerCase();
+                card.className = `process-card p-3 shadow-md ${typeClass}`;
+                
+                card.innerHTML = `<div class="flex justify-between items-center">
+                                    <span class="font-bold">PID: ${p.pid}</span>
+                                    <span class="text-xs px-2 py-1 bg-gray-700 rounded-full">${p.predictedType}</span>
+                                </div>`;
+                
+                // Only allow inspecting unclassified processes
+                if (p.predictedType === 'Unclassified') {
+                    card.onclick = () => showInspector(p);
+                }
+                
+                queueDiv.appendChild(card);
+            });
+        }
+        
+        // --- Event Listeners ---
+        dom.startTrialBtn.addEventListener('click', startTrial);
+        dom.closeInspectorBtn.addEventListener('click', closeInspector);
+
+    </script>
+</body>
+</html>

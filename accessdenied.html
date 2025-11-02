@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied</title>
+    <style>
+        /* Define a simple 'blink' animation for the cursor effect */
+        @keyframes blink {
+            0%, 49% { border-right-color: transparent; }
+            50%, 100% { border-right-color: rgb(42, 223, 36); }
+        }
+
+        /* Define a simple 'glow' shadow that can be applied to text */
+        .glow {
+            text-shadow: 0 0 5px rgb(42, 223, 36), 0 0 10px rgb(42, 223, 36);
+        }
+
+        body {
+            background-color: black; /* Full black background */
+            color: rgb(42, 223, 36); /* Glowing green text */
+            font-family: 'Consolas', 'Lucida Console', monospace; /* Monospaced font for terminal feel */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .terminal-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .prompt {
+            white-space: pre;
+            margin-right: 10px;
+            font-size: 1.2em;
+            /* Apply the glow effect here */
+            text-shadow: 0 0 5px rgb(42, 223, 36), 0 0 10px rgb(42, 223, 36);
+        }
+
+        .message {
+            font-size: 1.2em;
+            white-space: pre;
+            /* Apply the glow effect here */
+            text-shadow: 0 0 5px rgb(42, 223, 36), 0 0 10px rgb(42, 223, 36);
+
+            /* Add a blinking cursor effect */
+            border-right: 2px solid rgb(42, 223, 36);
+            padding-right: 5px;
+            animation: blink 1s step-end infinite;
+        }
+
+        .message.no-cursor {
+            border-right: none;
+            animation: none;
+        }
+
+        .footer-link {
+            color: red;
+            font-family: monospace;
+            text-decoration: none;
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            padding: 10px;
+            /* Apply glow to footer link as well for consistency */
+            text-shadow: 0 0 3px red, 0 0 5px red; 
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-line">
+        <span class="prompt">>></span>
+        <span class="message">access is denied</span>
+    </div>
+
+    <a href="index.html" class="footer-link">Try again</a>
+</body>
+</html>

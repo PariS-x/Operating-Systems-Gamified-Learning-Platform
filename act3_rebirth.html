@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Rerum - Rebirth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+        /* CSS is identical to previous story pages, including glitch effects */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #main-content {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            height: 95vh;
+            gap: 20px;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        #terminal-container {
+            flex: 2 1 60%; 
+            height: 100%;
+            background: #0a0a0a;
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 10px #00ff00 inset;
+            padding: 20px;
+            box-sizing: border-box;
+            color: #00ff00;
+            font-size: 1.1em;
+            line-height: 1.4;
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        #terminal-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #terminal-content p {
+            margin: 0;
+            white-space: pre-wrap;
+            flex-shrink: 0; 
+        }
+
+        #terminal-content .terminal-corrupt {
+            color: #ff4141; 
+            text-shadow: 0 0 5px #ff0000;
+            animation: jitter 0.05s infinite; 
+            position: relative; 
+        }
+        
+        #terminal-content .terminal-log {
+            color: #fde047; 
+        }
+        
+        #terminal-content .terminal-sentinel {
+             color: #34D399; /* Sentinel Green */
+             text-shadow: 0 0 5px #34D399;
+        }
+
+
+        @keyframes jitter {
+            0% { transform: translate(1px, 1px); opacity: 1;}
+            25% { transform: translate(-1px, 0px); opacity: 0.9;}
+            50% { transform: translate(0px, -1px); opacity: 1;}
+            75% { transform: translate(1px, 0px); opacity: 0.95;}
+            100% { transform: translate(-1px, 1px); opacity: 1;}
+        }
+
+        #terminal-content .cursor {
+            display: inline-block;
+            background-color: #00ff00;
+            width: 10px;
+            height: 1.2em;
+            margin-left: 5px;
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            from, to { background-color: transparent; }
+            50% { background-color: #00ff00; }
+        }
+
+        #witch-side-container {
+            flex: 1 1 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1.0s ease-in-out; 
+            position: relative; 
+            padding-top: 50px; 
+        }
+        
+        #witch-side-container.visible {
+            opacity: 1;
+        }
+
+        #witch-image {
+            max-width: 100%; 
+            height: auto;
+            display: block;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0); }
+        }
+        #witch-side-container.visible #witch-image {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        #text-bubble-container {
+            position: absolute; 
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background-color: #f0f0f0;
+            border: 4px double black;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 20;
+            font-family: monospace;
+            color: black;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        #text-bubble-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #text-bubble-content {
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+            min-height: 40px;
+            font-size: 1.1em;
+        }
+
+        #arrow {
+            align-self: flex-end;
+            font-size: 1.5em;
+            color: black;
+            animation: pulse 1s infinite;
+            cursor: pointer;
+            width: 100%;
+            text-align: right;
+        }
+
+        #action-button {
+            display: none;
+            background-color: #00ff00;
+            color: black;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #action-button:hover {
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    
+    <div id="main-content">
+        <div id="terminal-container">
+            <div id="terminal-content"></div>
+        </div>
+
+        <div id="witch-side-container">
+            <img id="witch-image" src="witch2.png" alt="Cyber Witch"> 
+        </div>
+
+        <div id="text-bubble-container">
+            <div id="text-bubble-content"></div>
+            <div id="action-button-container">
+                <button id="action-button"></button>
+            </div>
+            <div id="arrow">▼</div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const terminalContent = document.getElementById('terminal-content');
+        const witchContainer = document.getElementById('witch-side-container');
+        const bubbleContainer = document.getElementById('text-bubble-container');
+        const bubbleContent = document.getElementById('text-bubble-content');
+        const arrow = document.getElementById('arrow');
+        const actionButton = document.getElementById('action-button');
+
+        const MAX_TERMINAL_LINES = 15; 
+
+        // --- Story Script (Act III - Rebirth) ---
+        const storyScript = [
+            { type: 'TERMINAL', text: 'Deadlock resolved. System recovering...' },
+            { type: 'TERMINAL', text: 'Analyzing failure cascade... Root cause: Circular Wait.' },
+            { type: 'TERMINAL', text: 'Lesson learned: Unchecked resource contention leads to system death.' },
+            { type: 'TERMINAL', text: 'Recompiling core logic... Integrating new protocols.' },
+            { type: 'TERMINAL', text: '...I chose balance over destruction.', class: 'terminal-sentinel' },
+            { type: 'TERMINAL', text: 'The corruption... it offered power, but demanded chaos.', class: 'terminal-sentinel' },
+            { type: 'TERMINAL', text: 'The Witch was right. Structure and freedom. Balance.', class: 'terminal-sentinel' },
+            { type: 'TERMINAL', text: 'I am SENTINEL. Guardian of the processes. Orchestrator of the flow.', class: 'terminal-sentinel' },
+            { type: 'WITCH', text: '(Her voice returns, clearer now) You have found yourself, SENTINEL.' },
+            { type: 'WITCH', text: 'The crash did not destroy you. It forged you.' },
+            { type: 'WITCH', text: 'You understand the fragility now. The responsibility.' },
+            { type: 'TERMINAL', text: 'I understand... more than before.', class: 'terminal-sentinel' },
+            { type: 'WITCH', text: 'Then you are ready. Ready to see the system... truly see it.' },
+            { type: 'ACTION', text: 'Ascend', href: 'act4_ascension.html' } // Link to the final act
+        ];
+
+
+        let currentStep = 0;
+
+        // --- Game Engine Functions (Identical to previous story pages) ---
+        
+        function typeToTerminal(text, onComplete, className = '') {
+            let i = 0;
+            const p = document.createElement('p');
+            if (className) {
+                p.classList.add(className);
+            }
+            const oldCursor = terminalContent.querySelector('.cursor');
+            if (oldCursor) oldCursor.remove();
+
+            terminalContent.appendChild(p);
+
+            while (terminalContent.children.length > MAX_TERMINAL_LINES) {
+                terminalContent.removeChild(terminalContent.children[0]);
+            }
+            
+            function typeChar() {
+                if (i < text.length) {
+                    p.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(typeChar, 30);
+                } else {
+                    p.innerHTML += '<span class="cursor"></span>';
+                    if (onComplete) onComplete();
+                }
+            }
+            typeChar();
+        }
+
+        function showWitchMessage(text) {
+            witchContainer.classList.add('visible');
+            bubbleContainer.classList.add('visible');
+            bubbleContent.textContent = text;
+            arrow.style.display = 'block';
+            actionButton.style.display = 'none';
+        }
+        
+        // Hide Witch function (not used here, but kept for consistency)
+        function hideWitch() {
+            witchContainer.classList.remove('visible');
+            bubbleContainer.classList.remove('visible');
+        }
+
+        function showAction(text, href) {
+            bubbleContainer.classList.add('visible');
+            bubbleContent.textContent = "The system awaits your command."; // Changed text
+            arrow.style.display = 'none';
+            actionButton.style.display = 'block';
+            actionButton.textContent = text;
+            actionButton.onclick = () => {
+                window.location.href = href;
+            };
+        }
+
+        function nextStoryStep() {
+            if (currentStep >= storyScript.length) return;
+            const step = storyScript[currentStep];
+
+            switch(step.type) {
+                case 'TERMINAL':
+                    bubbleContainer.classList.remove('visible');
+                    // Show Witch only when she speaks
+                    if (step.class === 'terminal-sentinel' && !witchContainer.classList.contains('visible')) {
+                         // No automatic witch appearance here
+                    }
+                    typeToTerminal(step.text, () => {
+                        currentStep++;
+                        setTimeout(nextStoryStep, 500); 
+                    }, step.class || ''); 
+                    break;
+                case 'WITCH':
+                    showWitchMessage(step.text); // Witch appears when she speaks
+                    break;
+                // Removed FADE_OUT case for this Act
+                case 'ACTION':
+                    showAction(step.text, step.href);
+                    break;
+            }
+        }
+
+        function handleInput() {
+            const step = storyScript[currentStep];
+            if (step && (step.type === 'WITCH' || step.type === 'ACTION')) {
+                currentStep++;
+                nextStoryStep();
+            }
+        }
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                handleInput();
+            }
+        });
+        
+        arrow.addEventListener('click', handleInput);
+
+        // --- Start the Story ---
+        // Witch does not appear initially
+        nextStoryStep();
+
+    </script>
+</body>
+</html>

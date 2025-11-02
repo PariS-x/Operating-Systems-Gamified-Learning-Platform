@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduler Mission Control - Advanced Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #071228; 
+            color: #E5E7EB;
+        }
+        .control-panel, .queue-container, .process-card, .inspector-panel, .metrics-card, .modal {
+            background-color: #1F2937;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+        }
+        .process-card {
+            transition: all 0.3s ease-in-out;
+            cursor: pointer;
+        }
+        .process-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .process-card.interactive { border-left: 5px solid #3498db; }
+        .process-card.batch { border-left: 5px solid #e67e22; }
+        .process-card.undetermined { border-left: 5px solid #95A5A6; }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 20px; height: 20px;
+            background: #c70606;
+            cursor: pointer; border-radius: 50%;
+        }
+        #inspector-panel {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+        }
+        #inspector-panel.visible { transform: translateX(0); }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 99;
+        }
+        .highlight-tutorial {
+            box-shadow: 0 0 20px 5px #0ea5e9;
+            transition: box-shadow 0.3s ease-in-out;
+            position: relative;
+            z-index: 101;
+        }
+        .explanation-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #67e8f9; /* cyan-300 */
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .explanation-content p {
+            color: #d1d5db; /* gray-300 */
+            line-height: 1.6;
+        }
+        .perf-table-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .perf-table-header {
+            font-weight: 600;
+            color: #9ca3af;
+        }
+        .doubt-mode-active body, .doubt-mode-active [data-doubt-key] {
+            cursor: help !important;
+        }
+        #doubt-btn.active {
+            background-color: #0ea5e9;
+            color: white;
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+    <!-- Modals -->
+    <div id="explanation-overlay" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div id="explanation-modal" class="modal w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-gray-600">
+                <h2 class="text-2xl font-bold text-cyan-400">Welcome to the CPU's Control Tower</h2>
+                <button id="close-explanation-btn" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto explanation-content">
+                <h3>What is a Process Scheduler?</h3>
+                <p>Imagine your computer's processor (CPU) is a single, extremely busy airport runway. The processes (your apps, background tasks, etc.) are all the planes that need to take off or land.</p>
+                <p>The Process Scheduler is the air traffic controller. Its job is to manage all these planes, deciding who gets to use the runway next to prevent crashes and keep everything moving smoothly. This dashboard visualizes the controller's strategy.</p>
+                
+                <h3>The Queues: The "Waiting Areas" for Processes</h3>
+                <p>The controller splits the planes into two main "holding patterns" or queues.</p>
+                <p><b>Interactive Queue (The "Express Lane"):</b> This is for urgent, quick tasks that need immediate attention, like your mouse moving, you typing, or a UI element responding. If this lane is slow, the whole system feels laggy.</p>
+                <p><b>The Strategy (Round Robin):</b>he controller gives every plane in this line a tiny slice of time on the runway (e.g., "You get 2 milliseconds, now you, now you..."). It cycles through them so fast, it feels like they're all moving at once, ensuring the system is always responsive.</p>
+                <p><b>Batch Queue (The "Heavy Cargo" Lane):</b> This is for long, heavy-lifting tasks that don't need user interaction, like a video rendering, a large file conversion, or a big scientific calculation. These tasks just need to get done, but no one is tapping their foot waiting for them right this second.</p>
+                <p><b>The Strategy (Priority Scheduling):</b>Every "cargo plane" is assigned a priority (e.g., 1 = most urgent, 10 = least). The controller always picks the plane with the highest priority (lowest number) from this line to run next.</p>
+                
+                <h3>Starvation and Aging: The Fairness Policy</h3>
+                <p><b>The Problem: Starvation </b> With priority scheduling, what happens if high-priority "cargo planes" (Priority 1) just keep arriving? A low-priority plane (Priority 10) might never get to use the runway. It's "starved" of CPU time.</p>
+                <p><b>The Solution: Aging </b> To prevent this, the controller uses Aging. If a process (a plane) waits in the Batch Queue for too long (say, 10 cycles in this sim), the controller automatically boosts its priority (e.g., from 10 to 9). If it waits longer, it gets boosted again. This ensures that every process, no matter how low its initial priority, will eventually get its turn.</p>
+
+                <h3>Understanding Process Behavior: The "Flight Plan"</h3>
+                <p>The controller needs to guess what kind of plane it's dealing with to put it in the right queue. It does this by looking at two main behaviors:</p>
+                <p><b>CPU Burst:</b> How much time does the process need to actively use the CPU ("runway time")?</p>
+                <p><b>Interactive apps</b> have short bursts (e.g., processing a single mouse click).</p>
+                <p><b>Batch processes</b> have long bursts (e.g., calculating for 10 solid minutes).</p>
+                <p><b>I/O Operations:</b> How often does the process stop to "wait" for something (e.g., reading from the disk, waiting for the network, or waiting for you to type something)?</p>
+                <p><b>Interactive apps</b> have frequent I/O (they're always waiting for the user).</p>
+                <p><b>Batch processes</b> have very little I/O (they just want to "calculate").</p>
+
+                <h3>The Classifier Engine: The Scheduler's "Brain"</h3>
+                <p>This is the really smart part. It's the "sorter" that has to automatically guess a new process's type (Interactive or Batch) to place it in the correct queue. You can choose which "brain" it uses:</p>
+                <p><b>Heuristic Mode (The "Simple Rulebook"):</b> Uses fixed "if-then" rules that you control. For example: "IF CPU burst is low AND I/O is high, THEN it's an Interactive process." This is fast and predictable, but rigid.</p>
+                <p><b>KNN (K-Nearest Neighbors) (The "Pattern Matcher"):</b> An ML model that looks at a new process and finds the 'K' (let's say 3) most similar processes it has seen in the past. It's like asking, "This new task looks a lot like these 3 previous tasks, and they were all Interactive. So, this one is probably Interactive too."</p>
+                <p><b>Naive Bayes (The "Statistician"):</b> A different ML model that uses probability. It's like a doctor diagnosing an illness based on symptoms. It calculates the probability of a process being 'Interactive' or 'Batch' given its CPU and I/O behavior (e.g., "Given this low burst and high I/O, there is a 92% chance this is an Interactive process").</p>
+            </div>
+        </div>
+    </div>
+    <div id="tutorial-overlay" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div id="tutorial-modal" class="modal p-6 text-center w-full max-w-md">
+            <h2 id="tutorial-title" class="text-2xl font-bold mb-4 text-cyan-400"></h2>
+            <p id="tutorial-text" class="text-gray-300 mb-6"></p>
+            <div class="flex justify-between items-center">
+                <button id="tutorial-prev" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Previous</button>
+                <span id="tutorial-step-counter" class="text-sm text-gray-400"></span>
+                <button id="tutorial-next" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="doubt-overlay" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div id="doubt-modal" class="modal w-full max-w-lg">
+            <div class="flex justify-between items-center p-4 border-b border-gray-600">
+                <h2 id="doubt-title" class="text-2xl font-bold text-cyan-400"></h2>
+                <button id="close-doubt-btn" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div id="doubt-text" class="p-6 text-gray-300"></div>
+        </div>
+    </div>
+
+
+    <header class="text-center mb-6 relative">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white tracking-wider">Scheduler Mission Control</h1>
+        <p class="text-gray-400">An Interactive OS Learning Platform</p>
+        <div class="absolute top-0 right-0 flex space-x-2">
+             <a href="index.html" id="page-toggle-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full text-sm transition-colors flex items-center" title="Switch to Game Mode">Game Mode</a>
+            <button id="doubt-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold p-2 rounded-full text-lg transition-colors flex items-center justify-center" title="Doubt Mode">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-book" viewBox="0 0 16 16">
+                  <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.823c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
+                </svg>
+            </button>
+            <button id="explanation-btn" class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-1 px-3 rounded-full text-lg transition-colors" title="Dashboard Explained">i</button>
+            <button id="help-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-full text-lg transition-colors" title="Start Tutorial">?</button>
+        </div>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <aside id="control-column" class="lg:col-span-1 space-y-6">
+            <div id="tutorial-target-controls" class="control-panel p-4" data-doubt-key="controls">
+                 <h2 class="text-xl font-semibold mb-4 text-center">Controls</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="start-pause-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start</button>
+                    <button id="reset-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reset</button>
+                </div>
+                <h3 class="text-lg font-semibold mt-6 mb-2 text-center">Spawn Process</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="spawn-interactive-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Interactive</button>
+                    <button id="spawn-batch-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Batch</button>
+                </div>
+            </div>
+            <div id="tutorial-target-classifier" class="control-panel p-4" data-doubt-key="classifier">
+                 <h2 class="text-xl font-semibold mb-4">Classifier Engine</h2>
+                 <div class="flex items-center justify-between">
+                     <select id="model-select" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="heuristic">Heuristic Mode</option>
+                        <option value="knn">KNN Model</option>
+                        <option value="naive_bayes">Naive Bayes Model</option>
+                     </select>
+                 </div>
+                 <p class="text-xs text-gray-400 mt-2">Training Data: <span id="training-data-size">0</span> samples</p>
+                 <p id="ml-warning" class="text-xs text-green-400 mt-1">ML Models ready. (Pre-loaded data)</p>
+            </div>
+            <div id="tutorial-target-performance" class="control-panel p-4" data-doubt-key="performance">
+                 <h2 class="text-xl font-semibold mb-4">Model Performance</h2>
+                 <div class="perf-table-grid font-mono">
+                    <div class="perf-table-header">Model</div>
+                    <div class="perf-table-header">Accuracy</div>
+                    <div class="perf-table-header">Cycles</div>
+                    <div class="perf-table-header">Avg CPU</div>
+                    
+                    <div class="text-left">Heuristic</div>
+                    <div id="heuristic-accuracy">N/A</div>
+                    <div id="heuristic-throughput">0</div>
+                    <div id="heuristic-cpu">N/A</div>
+
+                    <div class="text-left">KNN</div>
+                    <div id="knn-accuracy">N/A</div>
+                    <div id="knn-throughput">0</div>
+                    <div id="knn-cpu">N/A</div>
+
+                    <div class="text-left">Naive Bayes</div>
+                    <div id="naive-bayes-accuracy">N/A</div>
+                    <div id="naive-bayes-throughput">0</div>
+                    <div id="naive-bayes-cpu">N/A</div>
+                 </div>
+            </div>
+            <div id="tutorial-target-heuristics" class="control-panel p-4" data-doubt-key="heuristics">
+                <h2 class="text-xl font-semibold mb-4">Heuristic Thresholds</h2>
+                <div>
+                    <label for="burst-slider" class="block mb-2 text-sm font-medium">CPU Burst (&lt;<span id="burst-value">20</span>ms)</label>
+                    <input id="burst-slider" type="range" min="5" max="50" value="20" class="slider w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div class="mt-4">
+                    <label for="io-slider" class="block mb-2 text-sm font-medium">I/O Frequency (>=<span id="io-value">3</span> ops)</label>
+                    <input id="io-slider" type="range" min="1" max="10" value="3" class="slider w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div id="tutorial-target-metrics" class="metrics-card p-4" data-doubt-key="metrics">
+                 <h2 class="text-xl font-semibold mb-4">System Metrics</h2>
+                <div class="space-y-3">
+                    <p><strong>CPU Load:</strong> <span id="cpu-load">0%</span></p>
+                    <p><strong>Throughput:</strong> <span id="throughput">0</span> processes/min</p>
+                    <p><strong>Total Processes:</strong> <span id="total-processes">0</span></p>
+                </div>
+                <div class="mt-4">
+                     <canvas id="queue-pie-chart"></canvas>
+                </div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="tutorial-target-interactive-q" class="queue-container p-4" data-doubt-key="interactive-q">
+                    <h2 class="text-xl font-semibold text-center mb-4 text-blue-300">Interactive Queue (Round Robin)</h2>
+                    <div id="interactive-queue" class="space-y-3 min-h-[200px]"></div>
+                </div>
+                <div id="tutorial-target-batch-q" class="queue-container p-4" data-doubt-key="batch-q">
+                    <h2 class="text-xl font-semibold text-center mb-4 text-orange-300">Batch Queue (Priority)</h2>
+                    <div id="batch-queue" class="space-y-3 min-h-[200px]"></div>
+                </div>
+            </div>
+            <div id="tutorial-target-cpu-chart" class="metrics-card p-4" data-doubt-key="cpu-chart">
+                 <h2 class="text-xl font-semibold mb-4">CPU Load History</h2>
+                <canvas id="cpu-load-chart"></canvas>
+            </div>
+        </section>
+    </main>
+    
+    <div id="inspector-panel" class="inspector-panel fixed top-0 right-0 h-full w-full max-w-sm bg-gray-800 shadow-lg p-6 z-50">
+        <button id="close-inspector-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+        <h2 class="text-2xl font-bold mb-4">Process Inspector</h2>
+        <div id="inspector-content"></div>
+    </div>
+
+    <script type="module">
+        const BASE_TRAINING_DATA = [
+            { features: [12, 6], label: 'Interactive' }, { features: [8, 7], label: 'Interactive' },
+            { features: [15, 5], label: 'Interactive' }, { features: [10, 8], label: 'Interactive' },
+            { features: [7, 6], label: 'Interactive' }, { features: [18, 4], label: 'Interactive' },
+            { features: [11, 7], label: 'Interactive' }, { features: [9, 9], label: 'Interactive' },
+            { features: [13, 5], label: 'Interactive' }, { features: [6, 8], label: 'Interactive' },
+            { features: [16, 4], label: 'Interactive' }, { features: [14, 6], label: 'Interactive' },
+            { features: [20, 3], label: 'Interactive' }, { features: [5, 10], label: 'Interactive' },
+            { features: [19, 4], label: 'Interactive' }, { features: [75, 1], label: 'Batch' },
+            { features: [80, 0], label: 'Batch' }, { features: [65, 2], label: 'Batch' },
+            { features: [90, 1], label: 'Batch' }, { features: [85, 0], label: 'Batch' },
+            { features: [70, 2], label: 'Batch' }, { features: [95, 0], label: 'Batch' },
+            { features: [60, 1], label: 'Batch' }, { features: [88, 1], label: 'Batch' },
+            { features: [78, 2], label: 'Batch' }, { features: [92, 0], label: 'Batch' },
+            { features: [68, 1], label: 'Batch' }, { features: [82, 2], label: 'Batch' },
+            { features: [98, 0], label: 'Batch' }, { features: [72, 1], label: 'Batch' },
+        ];
+
+        const HISTORY_LEN = 5;
+        const SIMULATION_SPEED = 1000;
+        const K_NEIGHBORS = 3;
+        const AGING_THRESHOLD = 10;
+        
+        let appState = {
+            simulationInterval: null,
+            isPaused: true,
+            isDoubtMode: false,
+            nextPid: 101,
+            simulationStep: 0,
+            cpuLoadHistory: Array(30).fill(0),
+            throughputCounter: 0,
+            shortBurstThreshold: 20,
+            frequentIoThreshold: 3,
+            classifierMode: 'heuristic',
+            trainingData: [],
+            naiveBayesModel: {},
+            modelPerformance: {
+                heuristic: { correct: 0, total: 0, throughput: 0, totalCpu: 0 },
+                knn: { correct: 0, total: 0, throughput: 0, totalCpu: 0 },
+                naive_bayes: { correct: 0, total: 0, throughput: 0, totalCpu: 0 }
+            },
+        };
+        
+        let processes = { all: new Map(), interactiveQueue: [], batchQueue: [] };
+        const ProcessType = { UNDETERMINED: "Undetermined", INTERACTIVE: "Interactive", BATCH: "Batch" };
+        const ProcessBehavior = { INTERACTIVE: "True Interactive", BATCH: "True Batch" };
+        
+        class Process {
+            constructor(pid, trueBehavior) {
+                this.pid = pid;
+                this.trueBehavior = trueBehavior;
+                this.predictedType = ProcessType.UNDETERMINED;
+                this.cpuBurstHistory = [];
+                this.ioOpsHistory = [];
+                this.priority = (trueBehavior === ProcessBehavior.BATCH) ? Math.floor(Math.random() * 5) + 1 : null;
+                this.timeWaiting = 0;
+                this.hadPriorityBoost = false;
+            }
+        }
+
+        const dom = {
+            startPauseBtn: document.getElementById('start-pause-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            spawnInteractiveBtn: document.getElementById('spawn-interactive-btn'),
+            spawnBatchBtn: document.getElementById('spawn-batch-btn'),
+            burstSlider: document.getElementById('burst-slider'),
+            ioSlider: document.getElementById('io-slider'),
+            interactiveQueueDiv: document.getElementById('interactive-queue'),
+            batchQueueDiv: document.getElementById('batch-queue'),
+            inspectorPanel: document.getElementById('inspector-panel'),
+            inspectorContent: document.getElementById('inspector-content'),
+            closeInspectorBtn: document.getElementById('close-inspector-btn'),
+            modelSelect: document.getElementById('model-select'),
+            trainingDataSize: document.getElementById('training-data-size'),
+            mlWarning: document.getElementById('ml-warning'),
+            helpBtn: document.getElementById('help-btn'),
+            doubtBtn: document.getElementById('doubt-btn'),
+        };
+
+        const doubtExplanations = {
+            'controls': { title: 'Controls', text: 'This panel is your command center. Start/pause the simulation, reset everything, or spawn new "Interactive" (quick response) and "Batch" (long running) processes to test the scheduler.' },
+            'classifier': { title: 'Classifier Engine', text: 'This is the scheduler\'s brain. Use the dropdown to choose its thinking method: simple "Heuristics" (if-then rules) or smarter "ML Models" (KNN, Naive Bayes) that learn from data.' },
+            'performance': { title: 'Model Performance', text: 'This table shows how well each classification method is performing. "Accuracy" is how often it correctly guesses a process type. "Cycles" is the number of tasks completed. "Avg CPU" shows the average CPU usage for tasks classified by that model.' },
+            'heuristics': { title: 'Heuristic Thresholds', text: 'These sliders control the simple "if-then" rules for Heuristic mode. Adjust them to change how the scheduler categorizes processes based on their behavior.' },
+            'metrics': { title: 'System Metrics', text: 'This panel gives a high-level overview of the system\'s health, including current CPU load, overall throughput (processes completed per minute), and the total number of active processes.' },
+            'interactive-q': { title: 'Interactive Queue', text: 'The "express lane" for tasks needing a fast response. It uses Round Robin scheduling, giving each process a quick turn to prevent any single one from causing delays.' },
+            'batch-q': { title: 'Batch Queue', text: 'The queue for long, background tasks. It uses Priority scheduling with Aging. It runs tasks with the lowest priority number first, but if a task waits too long, its priority gets boosted to prevent it from getting stuck (starvation).' },
+            'cpu-chart': { title: 'CPU Load History', text: 'This graph shows the moment-by-moment CPU usage over the last 30 cycles. Spikes indicate that a process is running, while dips show the CPU is idle.' }
+        };
+
+        const charts = {};
+        function setupCharts() {
+            const commonTextOptions = { color: '#E5E7EB' };
+            charts.cpuLoadChart = new Chart(document.getElementById('cpu-load-chart').getContext('2d'), {
+                type: 'line', data: { labels: Array(30).fill(''), datasets: [{ 
+                    label: 'CPU Load (%)', 
+                    data: appState.cpuLoadHistory, 
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                    fill: true, 
+                    tension: 0.4 
+                }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100, ticks: commonTextOptions }, x: { ticks: commonTextOptions } }, plugins: { legend: { labels: { color: '#E5E7EB' } } } }
+            });
+            charts.queuePieChart = new Chart(document.getElementById('queue-pie-chart').getContext('2d'), {
+                type: 'pie', data: { labels: ['Interactive', 'Batch'], datasets: [{ data: [0, 0], backgroundColor: ['#06b6d4', '#f97316'] }] },
+                options: { responsive: true, plugins: { legend: { labels: { color: '#E5E7EB' } } } }
+            });
+        }
+        function euclideanDistance(a, b) {
+            return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2));
+        }
+        function predictWithKnn(newPoint) {
+            const distances = appState.trainingData.map(item => ({
+                dist: euclideanDistance(newPoint, item.features),
+                label: item.label
+            }));
+            distances.sort((a, b) => a.dist - b.dist);
+            const neighbors = distances.slice(0, K_NEIGHBORS);
+            const votes = neighbors.reduce((acc, neighbor) => {
+                acc[neighbor.label] = (acc[neighbor.label] || 0) + 1;
+                return acc;
+            }, {});
+            return Object.keys(votes).reduce((a, b) => votes[a] > votes[b] ? a : b);
+        }
+        function trainNaiveBayes() {
+            const model = {
+                totals: { Interactive: 0, Batch: 0 },
+                featureMeans: { Interactive: [0, 0], Batch: [0, 0] },
+                featureVars: { Interactive: [0, 0], Batch: [0, 0] },
+            };
+            appState.trainingData.forEach(d => {
+                model.totals[d.label]++;
+                model.featureMeans[d.label][0] += d.features[0];
+                model.featureMeans[d.label][1] += d.features[1];
+            });
+
+            for (const label in model.totals) {
+                if(model.totals[label] > 0) {
+                    model.featureMeans[label][0] /= model.totals[label];
+                    model.featureMeans[label][1] /= model.totals[label];
+                }
+            }
+
+            appState.trainingData.forEach(d => {
+                model.featureVars[d.label][0] += Math.pow(d.features[0] - model.featureMeans[d.label][0], 2);
+                model.featureVars[d.label][1] += Math.pow(d.features[1] - model.featureMeans[d.label][1], 2);
+            });
+
+            for (const label in model.totals) {
+                if(model.totals[label] > 1) {
+                    model.featureVars[label][0] /= model.totals[label] - 1;
+                    model.featureVars[label][1] /= model.totals[label] - 1;
+                } else {
+                    model.featureVars[label][0] = 1;
+                    model.featureVars[label][1] = 1;
+                }
+            }
+            appState.naiveBayesModel = model;
+        }
+        function calculateProbability(x, mean, variance) {
+            if (variance < 1e-4) variance = 1e-4;
+            const exponent = Math.exp(-Math.pow(x - mean, 2) / (2 * variance));
+            return (1 / Math.sqrt(2 * Math.PI * variance)) * exponent;
+        }
+        function predictWithNaiveBayes(features) {
+            const model = appState.naiveBayesModel;
+            const totalSamples = model.totals.Interactive + model.totals.Batch;
+            if (totalSamples === 0) return ProcessType.UNDETERMINED;
+
+            const probs = {};
+            for (const label in model.totals) {
+                if (model.totals[label] > 0) {
+                    const prior = model.totals[label] / totalSamples;
+                    const pFeature0 = calculateProbability(features[0], model.featureMeans[label][0], model.featureVars[label][0]);
+                    const pFeature1 = calculateProbability(features[1], model.featureMeans[label][1], model.featureVars[label][1]);
+                    probs[label] = Math.log(prior) + Math.log(pFeature0 || 1e-9) + Math.log(pFeature1 || 1e-9);
+                } else {
+                    probs[label] = -Infinity;
+                }
+            }
+            return probs.Interactive > probs.Batch ? ProcessType.INTERACTIVE : ProcessType.BATCH;
+        }
+        function classifyProcess(process) {
+            if (process.cpuBurstHistory.length === 0) return ProcessType.UNDETERMINED;
+
+            const avgCpuBurst = process.cpuBurstHistory.reduce((a, b) => a + b, 0) / process.cpuBurstHistory.length;
+            const avgIoOps = process.ioOpsHistory.reduce((a, b) => a + b, 0) / process.ioOpsHistory.length;
+            const features = [avgCpuBurst, avgIoOps];
+
+            const heuristicLabelForTraining = (avgCpuBurst < appState.shortBurstThreshold && avgIoOps >= appState.frequentIoThreshold) 
+                ? ProcessType.INTERACTIVE 
+                : ((avgCpuBurst >= appState.shortBurstThreshold && avgIoOps < appState.frequentIoThreshold) 
+                    ? ProcessType.BATCH 
+                    : process.predictedType);
+            
+            if(heuristicLabelForTraining !== ProcessType.UNDETERMINED) {
+                 appState.trainingData.push({ features, label: heuristicLabelForTraining });
+                 if (appState.trainingData.length > 200) appState.trainingData.shift(); 
+            }
+            
+            if (appState.classifierMode === 'knn') return predictWithKnn(features);
+            if (appState.classifierMode === 'naive_bayes') return predictWithNaiveBayes(features);
+            
+            return heuristicLabelForTraining;
+        }
+        function addNewProcess(behavior) {
+            const newProcess = new Process(appState.nextPid++, behavior);
+            processes.all.set(newProcess.pid, newProcess);
+            processes.interactiveQueue.push(newProcess.pid);
+            updateUI();
+        }
+        function evaluateModels(process, features) {
+            const trueLabel = process.trueBehavior === ProcessBehavior.INTERACTIVE ? ProcessType.INTERACTIVE : ProcessType.BATCH;
+
+            let heuristicPrediction;
+            if (features[0] < appState.shortBurstThreshold && features[1] >= appState.frequentIoThreshold) {
+                heuristicPrediction = ProcessType.INTERACTIVE;
+            } else if (features[0] >= appState.shortBurstThreshold && features[1] < appState.frequentIoThreshold) {
+                heuristicPrediction = ProcessType.BATCH;
+            } else {
+                heuristicPrediction = process.predictedType; 
+            }
+            appState.modelPerformance.heuristic.total++;
+            if (heuristicPrediction === trueLabel) {
+                appState.modelPerformance.heuristic.correct++;
+            }
+
+            if (appState.naiveBayesModel.totals) {
+                const knnPrediction = predictWithKnn(features);
+                appState.modelPerformance.knn.total++;
+                if (knnPrediction === trueLabel) {
+                    appState.modelPerformance.knn.correct++;
+                }
+
+                const nbPrediction = predictWithNaiveBayes(features);
+                appState.modelPerformance.naive_bayes.total++;
+                if (nbPrediction === trueLabel) {
+                    appState.modelPerformance.naive_bayes.correct++;
+                }
+            }
+        }
+        function runSimulationStep() {
+            if (appState.isPaused) return;
+            appState.simulationStep++;
+            let processToRunPid;
+            
+            processes.batchQueue.forEach(pid => {
+                const p = processes.all.get(pid);
+                if (p) {
+                    p.timeWaiting++;
+                    if (p.timeWaiting > AGING_THRESHOLD && p.priority > 1) {
+                        p.priority--;
+                        p.timeWaiting = 0;
+                        p.hadPriorityBoost = true;
+                    }
+                }
+            });
+
+            if (processes.interactiveQueue.length > 0) {
+                processToRunPid = processes.interactiveQueue.shift();
+            } else if (processes.batchQueue.length > 0) {
+                processes.batchQueue.sort((a, b) => {
+                    const procA = processes.all.get(a);
+                    const procB = processes.all.get(b);
+                    return procA.priority - procB.priority;
+                });
+                processToRunPid = processes.batchQueue.shift();
+            } else {
+                updateCpuLoad(0); return;
+            }
+            
+            const processToRun = processes.all.get(processToRunPid);
+            if (!processToRun) return;
+            
+            processToRun.timeWaiting = 0;
+
+            let cpuUsed = (processToRun.trueBehavior === ProcessBehavior.INTERACTIVE) ? (Math.random()*20+5) : (Math.random()*60+40);
+            let ioOps = (processToRun.trueBehavior === ProcessBehavior.INTERACTIVE) ? (Math.random()*5+4) : (Math.random()*3);
+            cpuUsed = Math.floor(cpuUsed); ioOps = Math.floor(ioOps);
+            updateCpuLoad(cpuUsed);
+
+            processToRun.cpuBurstHistory.push(cpuUsed);
+            if(processToRun.cpuBurstHistory.length > HISTORY_LEN) processToRun.cpuBurstHistory.shift();
+            processToRun.ioOpsHistory.push(ioOps);
+            if(processToRun.ioOpsHistory.length > HISTORY_LEN) processToRun.ioOpsHistory.shift();
+            
+            processToRun.predictedType = classifyProcess(processToRun);
+
+            const avgCpuBurst = processToRun.cpuBurstHistory.reduce((a,b)=>a+b,0) / processToRun.cpuBurstHistory.length;
+            const avgIoOps = processToRun.ioOpsHistory.reduce((a,b)=>a+b,0) / processToRun.ioOpsHistory.length;
+            evaluateModels(processToRun, [avgCpuBurst, avgIoOps]);
+
+            appState.modelPerformance.heuristic.throughput++;
+            appState.modelPerformance.heuristic.totalCpu += cpuUsed;
+            if(appState.naiveBayesModel.totals) {
+                appState.modelPerformance.knn.throughput++;
+                appState.modelPerformance.knn.totalCpu += cpuUsed;
+                appState.modelPerformance.naive_bayes.throughput++;
+                appState.modelPerformance.naive_bayes.totalCpu += cpuUsed;
+            }
+            
+            if (processToRun.predictedType === ProcessType.INTERACTIVE) {
+                processes.interactiveQueue.push(processToRunPid);
+            } else {
+                processes.batchQueue.push(processToRunPid);
+            }
+            
+            appState.throughputCounter++;
+            updateUI();
+        }
+        function updateUI() {
+            renderQueues(); 
+            updateMetrics(); 
+            updateCharts(); 
+            updateClassifierUI();
+            updatePerformanceUI();
+        }
+        function renderQueues() {
+            dom.interactiveQueueDiv.innerHTML = '';
+            dom.batchQueueDiv.innerHTML = '';
+            const createCard = pid => {
+                const p = processes.all.get(pid);
+                const card = document.createElement('div');
+                card.className = `process-card p-3 shadow-md ${p.predictedType.toLowerCase()}`;
+                
+                const priorityClass = p.hadPriorityBoost ? 'text-yellow-300 animate-pulse font-bold' : 'text-yellow-400 font-bold';
+                const priorityBadge = p.priority ? `<span class="text-xs ${priorityClass}">P:${p.priority}</span>` : '';
+
+                card.innerHTML = `<div class="flex justify-between items-center">
+                                    <span class="font-bold">PID: ${p.pid}</span>
+                                    ${priorityBadge}
+                                    <span class="text-xs px-2 py-1 bg-gray-700 rounded-full">${p.predictedType}</span>
+                                  </div>`;
+                card.onclick = () => showInspector(p);
+                p.hadPriorityBoost = false;
+                return card;
+            };
+            processes.interactiveQueue.forEach(pid => dom.interactiveQueueDiv.appendChild(createCard(pid)));
+            processes.batchQueue.forEach(pid => dom.batchQueueDiv.appendChild(createCard(pid)));
+        }
+        function updateMetrics() {
+            document.getElementById('total-processes').innerText = processes.all.size;
+            const minutes = (appState.simulationStep * SIMULATION_SPEED / 60000);
+            const throughput = minutes > 0 ? (appState.throughputCounter / minutes).toFixed(1) : 0;
+            document.getElementById('throughput').innerText = `${throughput} proc/min`;
+        }
+        function updateCpuLoad(currentLoad){
+            document.getElementById('cpu-load').innerText = `${currentLoad}%`;
+            appState.cpuLoadHistory.push(currentLoad);
+            if(appState.cpuLoadHistory.length > 30) appState.cpuLoadHistory.shift();
+        }
+        function updateCharts(){
+            if(charts.cpuLoadChart) {
+                charts.cpuLoadChart.data.datasets[0].data = appState.cpuLoadHistory;
+                charts.cpuLoadChart.update('none');
+            }
+            if(charts.queuePieChart) {
+                charts.queuePieChart.data.datasets[0].data = [processes.interactiveQueue.length, processes.batchQueue.length];
+                charts.queuePieChart.update('none');
+            }
+        }
+        function updateClassifierUI(){
+            dom.trainingDataSize.textContent = appState.trainingData.length;
+            const mlReady = appState.trainingData.length >= 30;
+            
+            if (mlReady) {
+                 dom.mlWarning.style.display = 'none';
+                 trainNaiveBayes();
+            } else {
+                dom.mlWarning.textContent = `Need ${30 - appState.trainingData.length} more samples to enable ML.`;
+                dom.mlWarning.style.display = 'block';
+            }
+        }
+        function updatePerformanceUI() {
+            const calculateAccuracy = (model) => {
+                if (model.total === 0) return 'N/A';
+                const accuracy = (model.correct / model.total) * 100;
+                return `${accuracy.toFixed(1)}%`;
+            };
+             const calculateAvgCpu = (model) => {
+                if (model.throughput === 0) return 'N/A';
+                const avgCpu = model.totalCpu / model.throughput;
+                return `${avgCpu.toFixed(0)}%`;
+            };
+
+            document.getElementById('heuristic-accuracy').textContent = calculateAccuracy(appState.modelPerformance.heuristic);
+            document.getElementById('knn-accuracy').textContent = calculateAccuracy(appState.modelPerformance.knn);
+            document.getElementById('naive-bayes-accuracy').textContent = calculateAccuracy(appState.modelPerformance.naive_bayes);
+
+            document.getElementById('heuristic-throughput').textContent = appState.modelPerformance.heuristic.throughput;
+            document.getElementById('knn-throughput').textContent = appState.modelPerformance.knn.throughput;
+            document.getElementById('naive-bayes-throughput').textContent = appState.modelPerformance.naive_bayes.throughput;
+
+            document.getElementById('heuristic-cpu').textContent = calculateAvgCpu(appState.modelPerformance.heuristic);
+            document.getElementById('knn-cpu').textContent = calculateAvgCpu(appState.modelPerformance.knn);
+            document.getElementById('naive-bayes-cpu').textContent = calculateAvgCpu(appState.modelPerformance.naive_bayes);
+        }
+        function showInspector(process) {
+            dom.inspectorContent.innerHTML = `
+                <p class="mb-2"><strong>PID:</strong> ${process.pid}</p>
+                <p class="mb-2"><strong>True Behavior:</strong> ${process.trueBehavior}</p>
+                <p class="mb-4"><strong>Predicted Type:</strong> ${process.predictedType}</p>
+                 ${process.priority ? `<p class="mb-2"><strong>Priority:</strong> ${process.priority}</p>` : ''}
+                 <p class="mb-4"><strong>Time Spent Waiting:</strong> ${process.timeWaiting} cycles</p>
+                <h3 class="font-semibold">CPU Burst History (ms)</h3>
+                <div class="flex items-end h-24 bg-gray-700 p-2 rounded-md space-x-1">${process.cpuBurstHistory.map(v => `<div class="bg-blue-500 w-full" style="height: ${v}%"></div>`).join('')}</div>
+                <h3 class="font-semibold mt-4">I/O Ops History</h3>
+                <div class="flex items-end h-24 bg-gray-700 p-2 rounded-md space-x-1">${process.ioOpsHistory.map(v => `<div class="bg-green-500 w-full" style="height: ${v*10}%"></div>`).join('')}</div>`;
+            dom.inspectorPanel.classList.add('visible');
+        }
+        function resetSimulation() {
+            clearInterval(appState.simulationInterval);
+            appState.simulationInterval = null;
+            appState.isPaused = true;
+            dom.startPauseBtn.textContent = 'Start';
+            
+            appState.nextPid = 101;
+            appState.simulationStep = 0;
+            appState.throughputCounter = 0;
+            
+            appState.trainingData = [...BASE_TRAINING_DATA]; 
+            trainNaiveBayes();
+
+            appState.classifierMode = 'heuristic';
+            dom.modelSelect.value = 'heuristic';
+            dom.mlWarning.style.display = 'none';
+            dom.modelSelect.querySelector('option[value="knn"]').disabled = false;
+            dom.modelSelect.querySelector('option[value="naive_bayes"]').disabled = false;
+
+            appState.modelPerformance = {
+                heuristic: { correct: 0, total: 0, throughput: 0, totalCpu: 0 },
+                knn: { correct: 0, total: 0, throughput: 0, totalCpu: 0 },
+                naive_bayes: { correct: 0, total: 0, throughput: 0, totalCpu: 0 }
+            };
+
+            processes.all.clear();
+            processes.interactiveQueue = [];
+            processes.batchQueue = [];
+            
+            addNewProcess(ProcessBehavior.INTERACTIVE);
+            addNewProcess(ProcessBehavior.BATCH);
+            addNewProcess(ProcessBehavior.INTERACTIVE);
+            addNewProcess(ProcessBehavior.BATCH);
+            
+            updateUI();
+        }
+
+        const tutorialOverlay = document.getElementById('tutorial-overlay');
+        const tutorialModal = document.getElementById('tutorial-modal');
+        const tutorialTitle = document.getElementById('tutorial-title');
+        const tutorialText = document.getElementById('tutorial-text');
+        const tutorialPrevBtn = document.getElementById('tutorial-prev');
+        const tutorialNextBtn = document.getElementById('tutorial-next');
+        const tutorialStepCounter = document.getElementById('tutorial-step-counter');
+
+        const tutorialSteps = [
+            { title: "What is a Process?", text: "Think of a 'process' as a single task for the computer, like a running app. Here, we simulate two types: Interactive and Batch. Let's start by looking at the queues where they wait.", elementId: null },
+            { title: "The Interactive Queue", text: "This is the express lane! Processes here are 'interactive' - they need fast responses. Think of a text editor or a game. We use a 'Round Robin' method, giving each process a quick turn to keep things snappy.", elementId: 'tutorial-target-interactive-q' },
+            { title: "The Batch Queue", text: "This is the highway for heavy loads. 'Batch' processes are long, background tasks. They don't need instant feedback, so they wait patiently here and are run based on their 'Priority' level (lower is better!).", elementId: 'tutorial-target-batch-q' },
+            { title: "The Control Panel", text: "This is your command center. You can Start/Pause the simulation, Reset everything, and most importantly, 'Spawn' new processes to see how the scheduler handles them.", elementId: 'tutorial-target-controls' },
+            { title: "The Brain: Classifier Engine", text: "This is the scheduler's brain. Use the dropdown to choose how it predicts a process's type. It starts in 'Heuristic Mode' (simple rules). You can switch to an ML Model right away thanks to our pre-loaded data!", elementId: 'tutorial-target-classifier' },
+            { title: "Model Performance", text: "This panel shows how accurately each model is guessing the true nature of the processes. Watch how the accuracies change as the simulation runs. Which model performs best for you?", elementId: 'tutorial-target-performance' },
+            { title: "Heuristic 'Rules of Thumb'", text: "These sliders define the simple 'if-then' rules for the Heuristic Mode. You can change them! For example, lower the 'CPU Burst' threshold to make the scheduler classify more processes as 'Batch'.", elementId: 'tutorial-target-heuristics' },
+            { title: "System Health Metrics", text: "This panel shows the scheduler's performance at a glance. You can see the total number of processes and a pie chart showing how they are distributed across the queues.", elementId: 'tutorial-target-metrics' },
+            { title: "You're Ready!", text: "That's it! Click 'Start' to see the scheduler in action. Spawn new processes, change the heuristics, and try to enable the ML Models. Enjoy exploring the world of OS scheduling!", elementId: null },
+        ];
+        
+        let currentStep = 0;
+        let highlightedElement = null;
+
+        function startTutorial() {
+            currentStep = 0;
+            tutorialOverlay.classList.remove('hidden');
+            showStep(currentStep);
+        }
+
+        function endTutorial() {
+            tutorialOverlay.classList.add('hidden');
+            if(highlightedElement) {
+                highlightedElement.classList.remove('highlight-tutorial');
+            }
+            localStorage.setItem('schedulerTutorialCompleted', 'true');
+        }
+
+        function showStep(stepIndex) {
+            if (highlightedElement) {
+                highlightedElement.classList.remove('highlight-tutorial');
+            }
+            const step = tutorialSteps[stepIndex];
+            tutorialTitle.innerText = step.title;
+            tutorialText.innerText = step.text;
+            tutorialStepCounter.innerText = `${stepIndex + 1} / ${tutorialSteps.length}`;
+            if(step.elementId) {
+                highlightedElement = document.getElementById(step.elementId);
+                highlightedElement.classList.add('highlight-tutorial');
+            }
+            tutorialPrevBtn.disabled = stepIndex === 0;
+            tutorialNextBtn.innerText = (stepIndex === tutorialSteps.length - 1) ? 'Finish' : 'Next';
+        }
+
+        tutorialNextBtn.addEventListener('click', () => {
+            if (currentStep < tutorialSteps.length - 1) {
+                currentStep++;
+                showStep(currentStep);
+            } else {
+                endTutorial();
+            }
+        });
+
+        tutorialPrevBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        });
+        
+        const doubtOverlay = document.getElementById('doubt-overlay');
+        const doubtModal = document.getElementById('doubt-modal');
+        const doubtTitle = document.getElementById('doubt-title');
+        const doubtText = document.getElementById('doubt-text');
+        const closeDoubtBtn = document.getElementById('close-doubt-btn');
+
+        function toggleDoubtMode() {
+            appState.isDoubtMode = !appState.isDoubtMode;
+            document.body.classList.toggle('doubt-mode-active', appState.isDoubtMode);
+            dom.doubtBtn.classList.toggle('active', appState.isDoubtMode);
+        }
+
+        function showDoubtExplanation(key) {
+            const explanation = doubtExplanations[key];
+            if (!explanation) return;
+            doubtTitle.textContent = explanation.title;
+            doubtText.textContent = explanation.text;
+            doubtOverlay.classList.remove('hidden');
+        }
+
+        closeDoubtBtn.addEventListener('click', () => {
+            doubtOverlay.classList.add('hidden');
+        });
+        
+        dom.doubtBtn.addEventListener('click', toggleDoubtMode);
+
+        document.body.addEventListener('click', (e) => {
+            if (!appState.isDoubtMode) return;
+            
+            const doubtTarget = e.target.closest('[data-doubt-key]');
+            if (doubtTarget) {
+                e.preventDefault();
+                e.stopPropagation();
+                const key = doubtTarget.getAttribute('data-doubt-key');
+                showDoubtExplanation(key);
+                toggleDoubtMode();
+            }
+        }, true);
+
+
+        dom.startPauseBtn.addEventListener('click', () => {
+            appState.isPaused = !appState.isPaused;
+            dom.startPauseBtn.textContent = appState.isPaused ? 'Resume' : 'Pause';
+            if (!appState.isPaused && !appState.simulationInterval) {
+                appState.simulationInterval = setInterval(runSimulationStep, SIMULATION_SPEED);
+            }
+        });
+        dom.resetBtn.addEventListener('click', resetSimulation);
+        dom.spawnInteractiveBtn.addEventListener('click', () => addNewProcess(ProcessBehavior.INTERACTIVE));
+        dom.spawnBatchBtn.addEventListener('click', () => addNewProcess(ProcessBehavior.BATCH));
+        dom.burstSlider.addEventListener('input', (e) => {
+            appState.shortBurstThreshold = parseInt(e.target.value);
+            document.getElementById('burst-value').innerText = e.target.value;
+        });
+        dom.ioSlider.addEventListener('input', (e) => {
+            appState.frequentIoThreshold = parseInt(e.target.value);
+            document.getElementById('io-value').innerText = e.target.value;
+        });
+        dom.closeInspectorBtn.addEventListener('click', () => dom.inspectorPanel.classList.remove('visible'));
+        dom.modelSelect.addEventListener('change', (e) => {
+            appState.classifierMode = e.target.value;
+        });
+        document.getElementById('explanation-btn').addEventListener('click', () => {
+            document.getElementById('explanation-overlay').classList.remove('hidden');
+        });
+        document.getElementById('close-explanation-btn').addEventListener('click', () => {
+            document.getElementById('explanation-overlay').classList.add('hidden');
+        });
+        dom.helpBtn.addEventListener('click', startTutorial);
+
+        window.addEventListener('load', () => {
+            setupCharts();
+            resetSimulation();
+            const tutorialCompleted = localStorage.getItem('schedulerTutorialCompleted');
+            if (!tutorialCompleted) {
+                startTutorial();
+            }
+        });
+
+    </script>
+</body>
+</html>
+

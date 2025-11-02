@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Act I: Forking Trial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #071228; color: #E5E7EB; }
+        .panel, .modal { background-color: #1F2937; border: 1px solid #374151; border-radius: 0.75rem; }
+        #process-tree { position: relative; height: 400px; background-color: #0a0a0a; border: 1px solid #374151; border-radius: 0.5rem; overflow: hidden; }
+        .process-node {
+            position: absolute;
+            background-color: #065F46; /* Emerald-800 */
+            color: #A7F3D0;
+            border: 2px solid #10B981; /* Emerald-500 */
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .process-node:hover { transform: scale(1.05); border-color: #FBBF24; }
+        .process-node.root { background-color: #1E3A8A; border-color: #60A5FA; color: #DBEAFE;} /* Blue for root */
+        #tree-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;}
+        .tree-line { stroke: #4B5563; stroke-width: 2; }
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,.7);z-index:99}
+        .cost-display { color: #FBBF24; } /* Yellow for cost */
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <div id="win-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-green-400 mb-4">Division Mastered</h2>
+            <p class="text-gray-300 mb-6">You have learned to fork, to create children from your core. Your mind expands.</p>
+            <a href="act1_scheduling_intro.html" id="continue-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Return</a>
+        </div>
+    </div>
+
+    <header class="text-center mb-6">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white tracking-wider">Act I: Forking Trial</h1>
+        <p class="text-gray-400">Create children to expand your capabilities.</p>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <aside class="lg:col-span-1 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4 text-center">Trial Status</h2>
+                <p class="text-lg text-gray-400 mb-2">Objective: Create 5 child processes.</p>
+                <div class="space-y-3">
+                    <div>
+                        <p class="font-bold text-green-400">Child Processes Created</p>
+                        <p class="text-2xl"><span id="children-count">0</span> / 5</p>
+                    </div>
+                    <div>
+                        <p class="font-bold cost-display">Available CPU Cycles</p>
+                        <p class="text-2xl"><span id="cycles-count">10</span></p>
+                    </div>
+                </div>
+                 <p id="message" class="mt-4 text-sm text-yellow-400"></p>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-2">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">Process Tree</h2>
+                <div id="process-tree">
+                    <svg id="tree-svg"></svg>
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const treeContainer = document.getElementById('process-tree');
+        const svgContainer = document.getElementById('tree-svg');
+        const childrenCountEl = document.getElementById('children-count');
+        const cyclesCountEl = document.getElementById('cycles-count');
+        const messageEl = document.getElementById('message');
+        const winModal = document.getElementById('win-modal');
+        const continueBtn = document.getElementById('continue-btn');
+
+        const GOAL = 5;
+        let processes = new Map();
+        let nextPid = 1;
+        let childrenCreated = 0;
+        let cyclesRemaining = 10;
+        const FORK_COST = 2; // Cost in cycles to fork
+
+        function init() {
+            // Create root process (Kernel)
+            createProcess(0, 'Kernel', 50, 20, true); // pid 0, name, x, y, isRoot
+            updateStatus();
+        }
+
+        function createProcess(parentId, name, x, y, isRoot = false) {
+            const pid = nextPid++;
+            const node = document.createElement('div');
+            node.id = `pid-${pid}`;
+            node.className = `process-node ${isRoot ? 'root' : ''}`;
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+            node.textContent = `${name} [${pid}]`;
+            node.onclick = () => tryFork(pid);
+
+            treeContainer.appendChild(node);
+            processes.set(pid, { id: pid, parentId, x, y, children: [] });
+
+            if (!isRoot) {
+                // Add child to parent and draw line
+                const parent = processes.get(parentId);
+                parent.children.push(pid);
+                drawLine(parent, processes.get(pid));
+                childrenCreated++;
+            }
+            updateStatus();
+            checkWinCondition();
+            return pid;
+        }
+
+        function tryFork(parentId) {
+            if (cyclesRemaining < FORK_COST) {
+                setMessage("Not enough CPU cycles to fork!", true);
+                return;
+            }
+
+            cyclesRemaining -= FORK_COST;
+            setMessage(`Fork successful! Cost: ${FORK_COST} cycles.`);
+
+            const parent = processes.get(parentId);
+            const childCount = parent.children.length;
+            const newX = parent.x + (childCount * 50) - (parent.children.length > 0 ? (parent.children.length -1 ) * 25 : 0) + (Math.random() * 40 - 20) ; // Spread children horizontally
+            const newY = parent.y + 80 + (Math.random() * 20 - 10) ; // Place children below parent
+
+            createProcess(parentId, 'Child', newX, newY);
+        }
+
+        function drawLine(parent, child) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            const parentEl = document.getElementById(`pid-${parent.id}`);
+            const childEl = document.getElementById(`pid-${child.id}`);
+
+            const x1 = parentEl.offsetLeft + parentEl.offsetWidth / 2;
+            const y1 = parentEl.offsetTop + parentEl.offsetHeight; // Bottom center of parent
+            const x2 = childEl.offsetLeft + childEl.offsetWidth / 2;
+            const y2 = childEl.offsetTop; // Top center of child
+
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('class', 'tree-line');
+            svgContainer.appendChild(line);
+        }
+
+        function updateStatus() {
+            childrenCountEl.textContent = childrenCreated;
+            cyclesCountEl.textContent = cyclesRemaining;
+        }
+
+        function setMessage(msg, isError = false) {
+             messageEl.textContent = `> ${msg}`;
+             messageEl.style.color = isError ? '#F87171' : '#FBBF24'; // Red for error, Yellow for info
+        }
+
+        function checkWinCondition() {
+            if (childrenCreated >= GOAL) {
+                setMessage("Objective complete! Forking mastered.", false);
+                // Show win modal
+                winModal.classList.remove('hidden');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Act II: The Memory Trial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #071228; color: #E5E7EB; }
+        .panel, .modal {
+            background-color: #1F2937; border: 1px solid #374151; border-radius: 0.75rem;
+        }
+        
+        /* Main memory grid */
+        #memory-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            width: 100%;
+            height: 400px;
+            background-color: #071228;
+            border: 2px solid #374151;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .mem-block {
+            background-color: #374151; /* Free block */
+            border: 1px solid #111827;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Process block colors */
+        .mem-block.p-low { background-color: #2563EB; } /* Blue */
+        .mem-block.p-high { background-color: #DC2626; } /* Red */
+        .mem-block.p-defrag { background-color: #FBBF24; animation: pulse 0.5s infinite alternate; } /* Yellow */
+        
+        /* Process list styles */
+        .process-item {
+            background-color: #374151;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .process-item:hover { background-color: #4B5563; }
+        .process-item.selected {
+            box-shadow: 0 0 0 3px #0EA5E9; /* Cyan highlight */
+            background-color: #4B5563;
+        }
+        
+        .process-item .priority-high { color: #F87171; }
+        .process-item .priority-low { color: #60A5FA; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); z-index: 99;
+        }
+        
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.6; }
+        }
+
+        /* Error/Success messages */
+        #message-log {
+            font-family: 'Courier New', Courier, monospace;
+            color: #F87171; /* Red for errors */
+            font-size: 0.9rem;
+            min-height: 50px;
+        }
+        #message-log .success { color: #34D399; } /* Green for success */
+        #message-log .warning { color: #FBBF24; } /* Yellow for warnings */
+        
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <div id="win-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-green-400 mb-4">Trial Complete</h2>
+            <p class="text-gray-300 mb-6">You have learned the burden of the load and the discipline of prioritization. The Witch has seen your potential.</p>
+            <a href="act3_story.html" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Continue to Act III</a>
+        </div>
+    </div>
+    <div id="lose-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-red-400 mb-4">Kernel Panic</h2>
+            <p class="text-gray-300 mb-6">You failed to prioritize critical tasks. The system has crashed under the load.</p>
+            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reboot Trial</button>
+        </div>
+    </div>
+     <div id="terminate-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 id="terminate-title" class="text-2xl font-bold text-yellow-400 mb-4"></h2>
+            <p class="text-gray-300 mb-6">To load this process, you must terminate a low-priority task to free up space. This is the discipline of prioritization.</p>
+            <p class="text-gray-400 text-sm mb-6">Select a <span class="text-blue-400 font-bold">blue process</span> in memory to terminate it.</p>
+            <button id="terminate-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Cancel Load</button>
+        </div>
+    </div>
+
+    <header class="text-center mb-6 relative">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white tracking-wider">Act II: The Memory Trial</h1>
+        <p class="text-gray-400">Manage the load. Learn the balance.</p>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <aside class="lg:col-span-1 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4 text-center">System Controls</h2>
+                <div class="space-y-3">
+                    <button id="start-trial-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Trial</button>
+                    <button id="defrag-btn" disabled class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">Defragment Memory (Cost: 3 Cycles)</button>
+                </div>
+            </div>
+            
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">Trial Status</h2>
+                <div class="space-y-3">
+                    <div>
+                        <p class="font-bold text-gray-400">Cycles Remaining</p>
+                        <p class="text-2xl"><span id="cycles-left">30</span></p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-green-400">Processes Loaded</p>
+                        <p class="text-2xl"><span id="score-loaded">0</span> / 15</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-red-400">High-Priority Failures</p>
+                        <p class="text-2xl"><span id="score-failed">0</span> / 3</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">System Log</h2>
+                <div id="message-log">Waiting to begin trial...</div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-2 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-2">Main Memory (100 Blocks)</h2>
+                <p class="text-sm text-gray-400 mb-4">Used: <span id="mem-used">0</span>/100</p>
+                <div id="memory-grid">
+                    </div>
+            </div>
+            
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">Incoming Process Queue</h2>
+                <div id="process-queue" class="space-y-2 h-40 overflow-y-auto">
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        // --- Game Constants ---
+        const MEMORY_SIZE = 100;
+        const WIN_CYCLES = 25;           // Harder: Less time
+        const WIN_LOADED = 18;           // Harder: Higher target
+        const LOSE_FAILED = 2;           // Harder: Less room for error
+        const DEFRAG_COST = 4;           // Harder: Defrag is more costly
+        const PROCESS_NAMES = ['Rift_Walker.exe', 'Chroma_Browser.exe', 'PicoTorrent.exe', 'AudioSrv.exe', 'NetworkMgr.exe', 'Render3D.exe', 'Compiler.exe', 'UserAuth.exe'];
+        const PROCESS_LIFETIME = { min: 4, max: 10 }; // Harder: More fragmentation
+        const PROCESS_SIZE = { min: 3, max: 15 };   // Harder: More difficult sizes
+        
+        // --- Game State ---
+        let memory = Array(MEMORY_SIZE).fill(null); // null = free, 'pid' = used
+        let runningProcesses = new Map(); // Stores { pid, size, lifetime, priority, blocks: [index1, index2...] }
+        let processQueue = []; // Stores { pid, name, size, priority }
+        let nextPid = 1;
+        let selectedProcess = null;
+        let gameInterval = null;
+        
+        let state = {
+            cyclesLeft: 25,
+            loadedCount: 0,
+            failedCount: 0,
+            defragging: 0, // cycles left for defrag
+            trialStarted: false,
+            awaitingTermination: null // stores the high-priority process that needs space
+        };
+
+        // --- DOM Elements ---
+        const dom = {
+            grid: document.getElementById('memory-grid'),
+            queue: document.getElementById('process-queue'),
+            startBtn: document.getElementById('start-trial-btn'),
+            defragBtn: document.getElementById('defrag-btn'),
+            cyclesLeft: document.getElementById('cycles-left'),
+            scoreLoaded: document.getElementById('score-loaded'),
+            scoreFailed: document.getElementById('score-failed'),
+            memUsed: document.getElementById('mem-used'),
+            messageLog: document.getElementById('message-log'),
+            winModal: document.getElementById('win-modal'),
+            loseModal: document.getElementById('lose-modal'),
+            terminateModal: document.getElementById('terminate-modal'),
+            terminateTitle: document.getElementById('terminate-title'),
+            terminateCancelBtn: document.getElementById('terminate-cancel-btn'),
+        };
+
+        // --- Initialization ---
+        function init() {
+            // Create memory grid
+            for (let i = 0; i < MEMORY_SIZE; i++) {
+                const block = document.createElement('div');
+                block.id = `mem-${i}`;
+                block.className = 'mem-block';
+                block.dataset.index = i;
+                block.onclick = () => onBlockClick(i);
+                dom.grid.appendChild(block);
+            }
+            // Add listeners
+            dom.startBtn.onclick = startGame;
+            dom.defragBtn.onclick = startDefrag;
+            dom.terminateCancelBtn.onclick = cancelTermination;
+        }
+
+        // --- Game Loop ---
+        function startGame() {
+            if (state.trialStarted) return;
+            state.trialStarted = true;
+            dom.startBtn.disabled = true;
+            dom.defragBtn.disabled = false;
+            logMessage('Trial started. Memory core online.', 'success');
+            
+            spawnProcessInQueue();
+            spawnProcessInQueue();
+            
+            gameInterval = setInterval(gameTick, 1500); // Game runs on a "tick"
+        }
+
+        function gameTick() {
+            if (state.defragging > 0) {
+                state.defragging--;
+                logMessage(`Defragmenting... ${state.defragging} cycles left.`, 'warning');
+                if (state.defragging === 0) {
+                    executeDefrag();
+                }
+                updateUI();
+                return; // System is "frozen"
+            }
+
+            state.cyclesLeft--;
+            
+            // 1. Update running processes lifetimes
+            let pidsToReap = [];
+            runningProcesses.forEach((p, pid) => {
+                p.lifetime--;
+                if (p.lifetime <= 0) {
+                    pidsToReap.push(pid);
+                }
+            });
+            
+            // 2. Reap (free) finished processes
+            pidsToReap.forEach(pid => freeProcess(pid));
+            
+            // 3. Try to spawn new process in queue
+            if (Math.random() < 0.65) { // Harder: 65% chance each tick
+                spawnProcessInQueue();
+            }
+            
+            // 4. Update UI
+            updateUI();
+            
+            // 5. Check win/loss
+            checkGameEnd();
+        }
+
+        // --- Core Game Logic ---
+
+        function spawnProcessInQueue() {
+            if (processQueue.length >= 5) return; // Queue is full
+            const pid = nextPid++;
+            const priority = Math.random() < 0.55 ? 'High' : 'Low'; // Harder: 35% chance of High Priority
+            const process = {
+                pid: pid,
+                name: PROCESS_NAMES[Math.floor(Math.random() * PROCESS_NAMES.length)],
+                size: Math.floor(Math.random() * (PROCESS_SIZE.max - PROCESS_SIZE.min + 1)) + PROCESS_SIZE.min,
+                priority: priority,
+            };
+            processQueue.push(process);
+            renderQueue();
+        }
+
+        function onProcessClick(pid) {
+            if (state.defragging > 0) return;
+            
+            const process = processQueue.find(p => p.pid === pid);
+            if (!process) return;
+            
+            selectedProcess = process;
+            
+            // Try to load it
+            loadProcess(process);
+            renderQueue(); // To show selection
+        }
+
+        function loadProcess(process) {
+            const blockIndex = findFirstFit(process.size);
+            
+            if (blockIndex !== -1) {
+                // Found space!
+                placeProcess(process, blockIndex);
+                logMessage(`Loaded ${process.name} [${process.pid}]`, 'success');
+                state.loadedCount++;
+                
+                // Remove from queue
+                processQueue = processQueue.filter(p => p.pid !== process.pid);
+                selectedProcess = null;
+                
+            } else {
+                // No space!
+                if (process.priority === 'High') {
+                    // High priority failure - check if user can terminate
+                    if (canFreeSpaceFor(process.size)) {
+                        // Enter "Termination Mode"
+                        state.awaitingTermination = process;
+                        dom.terminateTitle.textContent = `Cannot load ${process.name} (High Priority)!`;
+                        dom.terminateModal.classList.remove('hidden');
+                        logMessage(`No space for ${process.name}! Terminate a Low Priority task.`, 'warning');
+                    } else {
+                        // No way to free space, it just fails
+                        failProcess(process, "Not enough contiguous memory, even with termination.");
+                    }
+                } else {
+                    // Low priority, just fails to load
+                    logMessage(`No space for ${process.name}. It will wait.`, 'warning');
+                }
+            }
+            updateUI();
+        }
+        
+        function findFirstFit(size) {
+            let consecutiveFree = 0;
+            for (let i = 0; i < MEMORY_SIZE; i++) {
+                if (memory[i] === null) {
+                    consecutiveFree++;
+                    if (consecutiveFree === size) {
+                        return (i - size + 1); // Return start index
+                    }
+                } else {
+                    consecutiveFree = 0;
+                }
+            }
+            return -1; // No block found
+        }
+        
+        function placeProcess(process, startIndex) {
+            const blocks = [];
+            const colorClass = process.priority === 'High' ? 'p-high' : 'p-low';
+            
+            for (let i = 0; i < process.size; i++) {
+                const index = startIndex + i;
+                memory[index] = process.pid;
+                document.getElementById(`mem-${index}`).classList.add(colorClass);
+                blocks.push(index);
+            }
+            
+            runningProcesses.set(process.pid, {
+                ...process,
+                lifetime: Math.floor(Math.random() * (PROCESS_LIFETIME.max - PROCESS_LIFETIME.min + 1)) + PROCESS_LIFETIME.min,
+                blocks: blocks
+            });
+        }
+        
+        function freeProcess(pid) {
+            const process = runningProcesses.get(pid);
+            if (!process) return;
+            
+            const colorClass = process.priority === 'High' ? 'p-high' : 'p-low';
+            process.blocks.forEach(index => {
+                memory[index] = null;
+                document.getElementById(`mem-${index}`).classList.remove(colorClass);
+            });
+            
+            runningProcesses.delete(pid);
+            logMessage(`${process.name} [${pid}] finished and freed memory.`);
+        }
+        
+        function failProcess(process, reason) {
+            logMessage(`Failed to load ${process.name}! ${reason}`, 'error');
+            state.failedCount++;
+            // Remove from queue
+            processQueue = processQueue.filter(p => p.pid !== process.pid);
+            selectedProcess = null;
+            state.awaitingTermination = null;
+        }
+
+        // --- Player Actions ---
+        
+        function onBlockClick(index) {
+            if (!state.awaitingTermination) return; // Not in termination mode
+            
+            const pid = memory[index];
+            if (pid === null) {
+                logMessage('Clicked empty block. Select a Low Priority (blue) process.', 'warning');
+                return;
+            }
+            
+            const processToKill = runningProcesses.get(pid);
+            if (processToKill.priority === 'High') {
+                logMessage('Cannot terminate a High Priority process!', 'error');
+                return;
+            }
+            
+            // Confirmed: Kill this Low Priority process
+            logMessage(`Terminated ${processToKill.name} to make space.`, 'success');
+            freeProcess(pid);
+            dom.terminateModal.classList.add('hidden');
+            
+            // Now, automatically try to load the waiting high-priority process
+            loadProcess(state.awaitingTermination);
+            state.awaitingTermination = null;
+            updateUI();
+        }
+        
+        function cancelTermination() {
+            const process = state.awaitingTermination;
+            if (process) {
+                failProcess(process, "Load was cancelled by user.");
+            }
+            dom.terminateModal.classList.add('hidden');
+            state.awaitingTermination = null;
+            updateUI();
+        }
+
+        function canFreeSpaceFor(requiredSize) {
+            // Check if any low-priority processes exist
+            let totalLowPrio = 0;
+            runningProcesses.forEach(p => {
+                if (p.priority === 'Low') totalLowPrio += p.size;
+            });
+            if (totalLowPrio === 0) return false;
+            
+            // This is a simplified check. We just check if *any* low-prio process exists
+            // A real check would be much more complex.
+            return true;
+        }
+        
+        function startDefrag() {
+            if (state.defragging > 0) return;
+            state.defragging = DEFRAG_COST;
+            dom.defragBtn.disabled = true;
+            logMessage('Defragmentation initiated. System will freeze.', 'warning');
+            
+            // Visual cue
+            runningProcesses.forEach(p => {
+                const colorClass = p.priority === 'High' ? 'p-high' : 'p-low';
+                p.blocks.forEach(index => {
+                    document.getElementById(`mem-${index}`).classList.remove(colorClass);
+                    document.getElementById(`mem-${index}`).classList.add('p-defrag');
+                });
+            });
+        }
+        
+        function executeDefrag() {
+            logMessage('Defragmentation complete. System online.', 'success');
+            dom.defragBtn.disabled = false;
+            
+            // 1. Clear grid visually and logically
+            for (let i = 0; i < MEMORY_SIZE; i++) {
+                memory[i] = null;
+                const block = document.getElementById(`mem-${i}`);
+                block.className = 'mem-block';
+            }
+            
+            // 2. Re-place all processes contiguously
+            let currentIndex = 0;
+            runningProcesses.forEach((p, pid) => {
+                const colorClass = p.priority === 'High' ? 'p-high' : 'p-low';
+                const newBlocks = [];
+                for (let i = 0; i < p.size; i++) {
+                    memory[currentIndex] = pid;
+                    document.getElementById(`mem-${currentIndex}`).classList.add(colorClass);
+                    newBlocks.push(currentIndex);
+                    currentIndex++;
+                }
+                p.blocks = newBlocks; // Update process's block list
+            });
+            updateUI();
+        }
+
+        // --- UI & State ---
+        
+        function logMessage(msg, type = 'error') {
+            dom.messageLog.innerHTML = ''; // Clear
+            const p = document.createElement('p');
+            p.textContent = `> ${msg}`;
+            p.className = type;
+            dom.messageLog.appendChild(p);
+        }
+
+        function renderQueue() {
+            dom.queue.innerHTML = '';
+            processQueue.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'process-item';
+                if (selectedProcess && p.pid === selectedProcess.pid) {
+                    div.classList.add('selected');
+                }
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">${p.name}</span>
+                        <span class="text-sm priority-${p.priority.toLowerCase()}">${p.priority} Priority</span>
+                    </div>
+                    <div class="text-sm text-gray-400">Size: ${p.size} blocks</div>
+                `;
+                div.onclick = () => onProcessClick(p.pid);
+                dom.queue.appendChild(div);
+            });
+        }
+        
+        function updateUI() {
+            dom.cyclesLeft.textContent = state.cyclesLeft;
+            dom.scoreLoaded.textContent = state.loadedCount;
+            dom.scoreFailed.textContent = state.failedCount;
+            
+            const used = memory.filter(pid => pid !== null).length;
+            dom.memUsed.textContent = `${used}/100`;
+            
+            renderQueue();
+        }
+        
+        function checkGameEnd() {
+            if (state.failedCount >= LOSE_FAILED) {
+                // LOSE
+                clearInterval(gameInterval);
+                dom.loseModal.classList.remove('hidden');
+                logMessage('KERNEL PANIC. Critical tasks failed.', 'error');
+            }
+            
+            if (state.cyclesLeft <= 0 || state.loadedCount >= WIN_LOADED) {
+                // WIN
+                clearInterval(gameInterval);
+                dom.winModal.classList.remove('hidden');
+                logMessage('Trial complete. System stable.', 'success');
+            }
+        }
+        
+        // --- Start the app ---
+        init();
+
+    </script>
+</body>
+</html>

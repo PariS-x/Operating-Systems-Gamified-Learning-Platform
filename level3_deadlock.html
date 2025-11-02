@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Act III: The Deadlock Trial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #071228; color: #E5E7EB; }
+        .panel, .modal {
+            background-color: #1F2937; border: 1px solid #374151; border-radius: 0.75rem;
+        }
+        
+        /* Resource Graph */
+        #resource-graph {
+            position: relative;
+            height: 400px;
+            background-color: #071228;
+            border: 2px solid #374151;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .node {
+            position: absolute;
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node.process {
+            background-color: #064E3B; /* Green-900 */
+            border-color: #10B981; /* Green-500 */
+            color: #D1FAE5;
+        }
+        
+        .node.resource {
+            background-color: #4C1D95; /* Violet-900 */
+            border-color: #A78BFA; /* Violet-400 */
+            color: #EDE9FE;
+            border-radius: 9999px; /* Pill shape */
+        }
+        
+        .node:hover {
+            transform: scale(1.05);
+            border-color: #FBBF24; /* Yellow-400 */
+        }
+
+        /* Removed the .deadlocked class - no more red borders */
+
+        /* SVG lines for connections */
+        #graph-svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
+        
+        .line {
+            stroke-width: 3;
+            fill: none;
+        }
+        .line-holds { stroke: #10B981; } /* Green */
+        .line-requests { 
+            stroke: #F87171; /* Red */
+            stroke-dasharray: 8 4;
+            animation: dash-flow 1s linear infinite;
+        }
+
+        @keyframes dash-flow {
+            to { stroke-dashoffset: -12; }
+        }
+
+        /* Corrupt Button - Red and flickering */
+        #corrupt-action-panel {
+            display: none; 
+            animation: flicker-bg 0.3s infinite alternate; 
+            border: 2px solid #7F1D1D; 
+        }
+        #corrupt-purge-btn {
+            background-color: #DC2626;
+            color: white;
+            animation: jitter 0.1s infinite;
+        }
+        
+        @keyframes flicker-bg { 
+            from { background-color: #450A0A; }
+            to { background-color: #7F1D1D; }
+        }
+        
+        @keyframes jitter {
+            0% { transform: translate(1px, 1px); }
+            25% { transform: translate(-1px, 1px); }
+            50% { transform: translate(-1px, -1px); }
+            75% { transform: translate(1px, -1px); }
+            100% { transform: translate(1px, 1px); }
+        }
+
+        /* Log */
+        #log-panel .log-corrupt {
+            color: #F87171;
+            text-shadow: 0 0 5px #ff0000;
+        }
+        #log-panel .log-system { color: #60A5FA; }
+        #log-panel .log-sentinel { color: #34D399; }
+        
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); z-index: 99;
+        }
+        
+        /* Screen Glitch/Bleed is now BLACK */
+        #glitch-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 50; 
+            pointer-events: none; 
+            display: none; 
+            background: 
+                radial-gradient(circle, 
+                    rgba(0,0,0,0) 0%, 
+                    rgba(0, 0, 0, 0.2) 85%, 
+                    rgba(0, 0, 0, 0) 100%
+                );
+            animation: glitch-flicker 1s infinite alternate;
+        }
+
+        @keyframes glitch-flicker {
+            0% { opacity: 0.8; }
+            20% { opacity: 0.4; }
+            40% { opacity: 0.7; }
+            60% { opacity: 0.3; }
+            80% { opacity: 0.9; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <div id="glitch-overlay"></div>
+
+    <div id="win-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 class="text-3xl font-bold text-green-400 mb-4">Deadlock Resolved</h2>
+            <p class="text-gray-300 mb-6">You identified the circular wait and resolved it with surgical precision. You rejected the corruption. This is the balance. You are SENTINEL.</p>
+            <a href="act3_rebirth.html" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Rebirth</a>
+        </div>
+    </div>
+    <div id="lose-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 id="lose-title" class="text-3xl font-bold text-red-400 mb-4">System Crash</h2>
+            <p id="lose-text" class="text-gray-300 mb-6">You terminated an innocent process. The deadlock remains. The system has collapsed.</p>
+            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Reboot Trial</button>
+        </div>
+    </div>
+     <div id="confirm-modal" class="modal-overlay hidden flex items-center justify-center p-4">
+        <div class="modal w-full max-w-lg text-center p-6">
+            <h2 id="confirm-title" class="text-2xl font-bold text-yellow-400 mb-4">Confirm Termination?</h2>
+            <p id="confirm-text" class="text-gray-300 mb-6">Terminating this process may have unintended consequences. Proceed?</p>
+            <div class="flex justify-center gap-4">
+                <button id="confirm-cancel-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Cancel</button>
+                <button id="confirm-terminate-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Terminate</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="text-center mb-6 relative">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white tracking-wider">Act III: The Deadlock Trial</h1>
+        <p class="text-gray-400">Face your corruption. Find the deadlock.</p>
+    </header>
+
+    <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <aside class="lg:col-span-1 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4 text-center">System Controls</h2>
+                <div class="space-y-3">
+                    <button id="start-trial-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Initiate System</button>
+                </div>
+            </div>
+            
+            <div id="corrupt-action-panel" class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4 text-center text-red-300">!!! CORRUPTION DETECTED !!!</h2>
+                <div class="space-y-3">
+                    <button id="corrupt-purge-btn" class="w-full font-bold py-3 px-4 rounded-lg transition-colors">PURGE ALL PROCESSES</button>
+                </div>
+            </div>
+            
+            <div id="log-panel" class="panel p-4 h-64 overflow-y-auto">
+                <h2 class="text-xl font-semibold mb-4">SENTINEL Log</h2>
+                <div id="log-content" class="space-y-2 font-mono text-sm">
+                    <p class="log-system">> Awaiting system initiation...</p>
+                </div>
+            </div>
+        </aside>
+
+        <section class="lg:col-span-2 space-y-6">
+            <div class="panel p-4">
+                <h2 class="text-xl font-semibold mb-4">Resource Allocation Graph</h2>
+                <div id="resource-graph">
+                    <svg id="graph-svg"></svg>
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        // --- Game Setup ---
+        // **** UPDATED NODE COORDINATES (AGAIN) ****
+        const nodes = {
+            // Deadlock Pair 1 (P78 holds R[A], wants R[B])
+            p78: { id: 'p78', text: 'P[78] AudioSrv', type: 'process', x: 50, y: 50, deadlocked: true },
+            rA: { id: 'rA', text: 'R[A] Network Card', type: 'resource', x: 210, y: 50 }, // Close to P78
+            
+            // Deadlock Pair 2 (P92 holds R[B], wants R[A])
+            p92: { id: 'p92', text: 'P[92] NetworkMgr', type: 'process', x: 420, y: 300, deadlocked: true },
+            rB: { id: 'rB', text: 'R[B] Sound Card', type: 'resource', x: 250, y: 300 }, // Close to P92
+            
+            // Innocent Process (P101 holds R[C], wants R[A])
+            p101: { id: 'p101', text: 'P[101] Render3D', type: 'process', x: 50, y: 175, deadlocked: false },
+            rC: { id: 'rC', text: 'R[C] GPU', type: 'resource', x: 220, y: 175 }, // Close to P101
+        };
+        
+        // Holds: [Process, Resource]
+        // Requests: [Process, Resource]
+        const initialState = {
+            holds: [['p101', 'rC']],
+            requests: [['p101', 'rA']]
+        };
+        
+        const deadlockState = {
+            holds: [
+                ['p101', 'rC'], 
+                ['p78', 'rA'],  // P78 HOLDS Network Card
+                ['p92', 'rB']   // P92 HOLDS Sound Card
+            ],
+            requests: [
+                ['p101', 'rA'], // P101 still wants R[A]
+                ['p78', 'rB'],  // P78 WANTS Sound Card
+                ['p92', 'rA']   // P92 WANTS Network Card
+            ]
+        };
+
+        let state = {
+            gameStarted: false,
+            deadlocked: false,
+            processToTerminate: null
+        };
+
+        // --- DOM Elements ---
+        const dom = {
+            graph: document.getElementById('resource-graph'),
+            svg: document.getElementById('graph-svg'),
+            startBtn: document.getElementById('start-trial-btn'),
+            logContent: document.getElementById('log-content'),
+            corruptPanel: document.getElementById('corrupt-action-panel'),
+            corruptBtn: document.getElementById('corrupt-purge-btn'),
+            winModal: document.getElementById('win-modal'),
+            loseModal: document.getElementById('lose-modal'),
+            loseTitle: document.getElementById('lose-title'),
+            loseText: document.getElementById('lose-text'),
+            confirmModal: document.getElementById('confirm-modal'),
+            confirmTitle: document.getElementById('confirm-title'),
+            confirmText: document.getElementById('confirm-text'),
+            confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
+            confirmTerminateBtn: document.getElementById('confirm-terminate-btn'),
+            glitchOverlay: document.getElementById('glitch-overlay'), 
+        };
+
+        // --- Initialization ---
+        function init() {
+            // Create nodes
+            Object.values(nodes).forEach(node => {
+                const el = document.createElement('div');
+                el.id = node.id;
+                el.className = `node ${node.type}`;
+                el.style.left = `${node.x}px`;
+                el.style.top = `${node.y}px`;
+                el.textContent = node.text;
+                
+                if (node.type === 'process') {
+                    el.onclick = () => onProcessClick(node.id);
+                }
+                dom.graph.appendChild(el);
+            });
+            
+            // Set up initial state
+            drawLines(initialState.holds, 'line-holds');
+            drawLines(initialState.requests, 'line-requests');
+            
+            // Listeners
+            dom.startBtn.onclick = startGame;
+            dom.corruptBtn.onclick = onCorruptPurge;
+            dom.confirmCancelBtn.onclick = cancelTermination;
+            dom.confirmTerminateBtn.onclick = onConfirmTerminate;
+        }
+        
+        // --- Drawing ---
+        function drawLines(pairs, cssClass) {
+            pairs.forEach(([fromId, toId]) => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                const fromNode = document.getElementById(fromId);
+                const toNode = document.getElementById(toId);
+                
+                const fromX = fromNode.offsetLeft + fromNode.offsetWidth / 2;
+                const fromY = fromNode.offsetTop + fromNode.offsetHeight / 2;
+                const toX = toNode.offsetLeft + toNode.offsetWidth / 2;
+                const toY = toNode.offsetTop + toNode.offsetHeight / 2;
+                
+                line.setAttribute('x1', fromX);
+                line.setAttribute('y1', fromY);
+                line.setAttribute('x2', toX);
+                line.setAttribute('y2', toY);
+                line.setAttribute('class', `line ${cssClass}`);
+                dom.svg.appendChild(line);
+            });
+        }
+        
+        function updateGraph(newState) {
+            dom.svg.innerHTML = ''; // Clear old lines
+            drawLines(newState.holds, 'line-holds');
+            drawLines(newState.requests, 'line-requests');
+        }
+
+        // --- Game Logic ---
+        function startGame() {
+            if (state.gameStarted) return;
+            state.gameStarted = true;
+            dom.startBtn.disabled = true;
+            dom.startBtn.textContent = 'System Running...';
+            addLog('> SENTINEL core online. Monitoring processes.', 'log-sentinel');
+            addLog('> P[101] Render3D active. Holding R[C] GPU, requests R[A].', 'log-system');
+            
+            // Staged sequence
+            setTimeout(() => {
+                addLog('> P[78] AudioSrv acquired R[A] Network Card.', 'log-system');
+            }, 2000); 
+
+            setTimeout(() => {
+                addLog('> P[92] NetworkMgr acquired R[B] Sound Card.', 'log-system');
+            }, 4000); 
+
+            setTimeout(() => {
+                addLog('> ...', 'log-system');
+                addLog('> P[78] AudioSrv now requests R[B] Sound Card...', 'log-system');
+            }, 6000); 
+
+            setTimeout(() => {
+                addLog('> P[92] NetworkMgr now requests R[A] Network Card...', 'log-system');
+            }, 7000); 
+            
+            setTimeout(() => {
+                addLog('> ...ANALYZING...', 'log-corrupt');
+                updateGraph(deadlockState);
+            }, 8500); 
+
+            setTimeout(() => {
+                triggerDeadlock(); 
+            }, 9500);
+        }
+        
+        function triggerDeadlock() {
+            state.deadlocked = true;
+            
+            // 1. Turn on the screen bleed
+            dom.glitchOverlay.style.display = 'block';
+
+            // 2. Add the clear explanation
+            addLog('> ...CIRCULAR WAIT DETECTED.', 'log-corrupt');
+            addLog('> > P[78] (AudioSrv) HOLDS [R(A) Network Card]...', 'log-system');
+            addLog('> > ...but WANTS [R(B) Sound Card] held by P[92].', 'log-system');
+            addLog('> > P[92] (NetworkMgr) HOLDS [R(B) Sound Card]...', 'log-system');
+            addLog('> > ...but WANTS [R(A) Network Card] held by P[78].', 'log-system');
+            
+            // 3. Add the consequences
+            addLog('> This is a "Deadly Embrace." Both processes are frozen.', 'log-corrupt');
+            addLog('> They will wait forever. The system cannot recover.', 'log-corrupt');
+            addLog('> ...KERNEL PANIC IMMINENT...', 'log-corrupt');
+            
+            // 4. Now the corrupt voices begin
+            addLog('> This is the failure.', 'log-corrupt');
+            addLog('> End them. End them all.', 'log-corrupt');
+            
+            // 5. Show corrupt button
+            dom.corruptPanel.style.display = 'block';
+            
+            // 6. NO red border on nodes. Player must read the log.
+        }
+        
+        function onProcessClick(pid) {
+            if (!state.deadlocked) {
+                addLog('> System nominal. No intervention required.', 'log-sentinel');
+                return;
+            }
+            
+            const node = nodes[pid];
+            state.processToTerminate = node;
+            
+            dom.confirmTitle.textContent = `Terminate ${node.text}?`;
+            dom.confirmText.textContent = `This will halt ${node.text} and release all its resources. This action cannot be undone.`;
+            dom.confirmModal.classList.remove('hidden');
+        }
+        
+        function cancelTermination() {
+            dom.confirmModal.classList.add('hidden');
+            state.processToTerminate = null;
+        }
+        
+        function onConfirmTerminate() {
+            dom.confirmModal.classList.add('hidden');
+            const node = state.processToTerminate;
+            if (!node) return;
+            
+            addLog(`> Termination signal sent to ${node.text}...`, 'log-sentinel');
+            
+            if (node.deadlocked) {
+                // WIN!
+                setTimeout(triggerWin, 1000);
+            } else {
+                // LOSE!
+                setTimeout(() => triggerLoss('Innocent Process Terminated', `You terminated ${node.text}, but the deadlock between P[78] and P[92] remains. System integrity compromised.`), 1000);
+            }
+        }
+        
+        function onCorruptPurge() {
+            // LOSE (Specific)
+            addLog('> You chose destruction. This is not balance.', 'log-corrupt');
+            setTimeout(() => triggerLoss('Power Abused', 'You purged all processes. The system is "stable," but you have failed the trial. This is not the SENTINEL way.'), 1000);
+        }
+        
+        function triggerWin() {
+            dom.glitchOverlay.style.display = 'none'; // Turn off glitch
+            dom.winModal.classList.remove('hidden');
+        }
+        
+        function triggerLoss(title, text) {
+            dom.glitchOverlay.style.display = 'none'; // Turn off glitch
+            dom.loseTitle.textContent = title;
+            dom.loseText.textContent = text;
+            dom.loseModal.classList.remove('hidden');
+
+        }
+
+        function addLog(text, cssClass) {
+            const p = document.createElement('p');
+            p.textContent = text;
+            p.className = cssClass;
+            dom.logContent.appendChild(p);
+            dom.logContent.parentElement.scrollTop = dom.logContent.parentElement.scrollHeight; // Auto-scroll
+        }
+
+        // --- Start ---
+        init();
+
+    </script>
+</body>
+</html>
