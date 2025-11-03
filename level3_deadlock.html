@@ -12,7 +12,6 @@
             background-color: #1F2937; border: 1px solid #374151; border-radius: 0.75rem;
         }
         
-        /* Resource Graph */
         #resource-graph {
             position: relative;
             height: 400px;
@@ -33,26 +32,23 @@
         }
         
         .node.process {
-            background-color: #064E3B; /* Green-900 */
-            border-color: #10B981; /* Green-500 */
+            background-color: #064E3B; 
+            border-color: #10B981;
             color: #D1FAE5;
         }
         
         .node.resource {
-            background-color: #4C1D95; /* Violet-900 */
-            border-color: #A78BFA; /* Violet-400 */
+            background-color: #4C1D95; 
+            border-color: #A78BFA; 
             color: #EDE9FE;
-            border-radius: 9999px; /* Pill shape */
+            border-radius: 9999px; 
         }
         
         .node:hover {
             transform: scale(1.05);
-            border-color: #FBBF24; /* Yellow-400 */
+            border-color: #FBBF24; 
         }
 
-        /* Removed the .deadlocked class - no more red borders */
-
-        /* SVG lines for connections */
         #graph-svg {
             position: absolute;
             top: 0; left: 0;
@@ -64,9 +60,9 @@
             stroke-width: 3;
             fill: none;
         }
-        .line-holds { stroke: #10B981; } /* Green */
+        .line-holds { stroke: #10B981; } 
         .line-requests { 
-            stroke: #F87171; /* Red */
+            stroke: #F87171;
             stroke-dasharray: 8 4;
             animation: dash-flow 1s linear infinite;
         }
@@ -75,7 +71,6 @@
             to { stroke-dashoffset: -12; }
         }
 
-        /* Corrupt Button - Red and flickering */
         #corrupt-action-panel {
             display: none; 
             animation: flicker-bg 0.3s infinite alternate; 
@@ -100,7 +95,6 @@
             100% { transform: translate(1px, 1px); }
         }
 
-        /* Log */
         #log-panel .log-corrupt {
             color: #F87171;
             text-shadow: 0 0 5px #ff0000;
@@ -113,7 +107,6 @@
             background-color: rgba(0, 0, 0, 0.7); z-index: 99;
         }
         
-        /* Screen Glitch/Bleed is now BLACK */
         #glitch-overlay {
             position: fixed;
             top: 0;
@@ -213,23 +206,20 @@
 
     <script type="module">
         // --- Game Setup ---
-        // **** UPDATED NODE COORDINATES (AGAIN) ****
         const nodes = {
-            // Deadlock Pair 1 (P78 holds R[A], wants R[B])
+            // Deadlock Pair 1 
             p78: { id: 'p78', text: 'P[78] AudioSrv', type: 'process', x: 50, y: 50, deadlocked: true },
             rA: { id: 'rA', text: 'R[A] Network Card', type: 'resource', x: 210, y: 50 }, // Close to P78
             
-            // Deadlock Pair 2 (P92 holds R[B], wants R[A])
+            // Deadlock Pair 2
             p92: { id: 'p92', text: 'P[92] NetworkMgr', type: 'process', x: 420, y: 300, deadlocked: true },
             rB: { id: 'rB', text: 'R[B] Sound Card', type: 'resource', x: 250, y: 300 }, // Close to P92
             
-            // Innocent Process (P101 holds R[C], wants R[A])
+            // Innocent Process 
             p101: { id: 'p101', text: 'P[101] Render3D', type: 'process', x: 50, y: 175, deadlocked: false },
             rC: { id: 'rC', text: 'R[C] GPU', type: 'resource', x: 220, y: 175 }, // Close to P101
         };
         
-        // Holds: [Process, Resource]
-        // Requests: [Process, Resource]
         const initialState = {
             holds: [['p101', 'rC']],
             requests: [['p101', 'rA']]
@@ -238,13 +228,13 @@
         const deadlockState = {
             holds: [
                 ['p101', 'rC'], 
-                ['p78', 'rA'],  // P78 HOLDS Network Card
-                ['p92', 'rB']   // P92 HOLDS Sound Card
+                ['p78', 'rA'],  
+                ['p92', 'rB']  
             ],
             requests: [
-                ['p101', 'rA'], // P101 still wants R[A]
-                ['p78', 'rB'],  // P78 WANTS Sound Card
-                ['p92', 'rA']   // P92 WANTS Network Card
+                ['p101', 'rA'], 
+                ['p78', 'rB'],  
+                ['p92', 'rA']   
             ]
         };
 
@@ -274,9 +264,7 @@
             glitchOverlay: document.getElementById('glitch-overlay'), 
         };
 
-        // --- Initialization ---
         function init() {
-            // Create nodes
             Object.values(nodes).forEach(node => {
                 const el = document.createElement('div');
                 el.id = node.id;
@@ -295,14 +283,12 @@
             drawLines(initialState.holds, 'line-holds');
             drawLines(initialState.requests, 'line-requests');
             
-            // Listeners
             dom.startBtn.onclick = startGame;
             dom.corruptBtn.onclick = onCorruptPurge;
             dom.confirmCancelBtn.onclick = cancelTermination;
             dom.confirmTerminateBtn.onclick = onConfirmTerminate;
         }
         
-        // --- Drawing ---
         function drawLines(pairs, cssClass) {
             pairs.forEach(([fromId, toId]) => {
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -324,12 +310,11 @@
         }
         
         function updateGraph(newState) {
-            dom.svg.innerHTML = ''; // Clear old lines
+            dom.svg.innerHTML = '';
             drawLines(newState.holds, 'line-holds');
             drawLines(newState.requests, 'line-requests');
         }
 
-        // --- Game Logic ---
         function startGame() {
             if (state.gameStarted) return;
             state.gameStarted = true;
@@ -391,7 +376,6 @@
             // 5. Show corrupt button
             dom.corruptPanel.style.display = 'block';
             
-            // 6. NO red border on nodes. Player must read the log.
         }
         
         function onProcessClick(pid) {
@@ -421,27 +405,24 @@
             addLog(`> Termination signal sent to ${node.text}...`, 'log-sentinel');
             
             if (node.deadlocked) {
-                // WIN!
                 setTimeout(triggerWin, 1000);
             } else {
-                // LOSE!
                 setTimeout(() => triggerLoss('Innocent Process Terminated', `You terminated ${node.text}, but the deadlock between P[78] and P[92] remains. System integrity compromised.`), 1000);
             }
         }
         
         function onCorruptPurge() {
-            // LOSE (Specific)
             addLog('> You chose destruction. This is not balance.', 'log-corrupt');
             setTimeout(() => triggerLoss('Power Abused', 'You purged all processes. The system is "stable," but you have failed the trial. This is not the SENTINEL way.'), 1000);
         }
         
         function triggerWin() {
-            dom.glitchOverlay.style.display = 'none'; // Turn off glitch
+            dom.glitchOverlay.style.display = 'none'; 
             dom.winModal.classList.remove('hidden');
         }
         
         function triggerLoss(title, text) {
-            dom.glitchOverlay.style.display = 'none'; // Turn off glitch
+            dom.glitchOverlay.style.display = 'none'; 
             dom.loseTitle.textContent = title;
             dom.loseText.textContent = text;
             dom.loseModal.classList.remove('hidden');
@@ -456,7 +437,6 @@
             dom.logContent.parentElement.scrollTop = dom.logContent.parentElement.scrollHeight; // Auto-scroll
         }
 
-        // --- Start ---
         init();
 
     </script>

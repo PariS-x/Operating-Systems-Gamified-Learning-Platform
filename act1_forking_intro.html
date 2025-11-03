@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-        /* CSS is identical to new_webpage.html */
         body{margin:0;overflow:hidden;background-color:black;display:flex;justify-content:center;align-items:center;height:100vh;font-family:'Courier New',Courier,monospace;color:white;position:relative;padding:20px;box-sizing:border-box}#main-content{display:flex;width:100%;max-width:1200px;height:95vh;gap:20px;align-items:flex-start;position:relative}#terminal-container{flex:2 1 60%;height:100%;background:#0a0a0a;border:1px solid #00ff00;box-shadow:0 0 10px #00ff00 inset;padding:20px;box-sizing:border-box;color:#00ff00;font-size:1.1em;line-height:1.4;display:flex;flex-direction:column;overflow:hidden}#terminal-content{display:flex;flex-direction:column}#terminal-content p{margin:0;white-space:pre-wrap;flex-shrink:0}#terminal-content .terminal-corrupt{color:#ff4141;text-shadow:0 0 5px #ff0000;animation:jitter .05s infinite;position:relative}#terminal-content .terminal-log{color:#fde047}@keyframes jitter{0%{transform:translate(1px,1px);opacity:1}25%{transform:translate(-1px,0);opacity:.9}50%{transform:translate(0,-1px);opacity:1}75%{transform:translate(1px,0);opacity:.95}100%{transform:translate(-1px,1px);opacity:1}}#terminal-content .cursor{display:inline-block;background-color:#00ff00;width:10px;height:1.2em;margin-left:5px;animation:blink 1s step-end infinite}@keyframes blink{0%,to{background-color:transparent}50%{background-color:#00ff00}}#witch-side-container{flex:1 1 40%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;opacity:0;transition:opacity 1s ease-in-out;position:relative;padding-top:50px}#witch-side-container.visible{opacity:1}#witch-image{max-width:100%;height:auto;display:block}@keyframes float{0%{transform:translateY(0)}50%{transform:translateY(-15px)}100%{transform:translateY(0)}}#witch-side-container.visible #witch-image{animation:float 3s ease-in-out infinite}#text-bubble-container{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:90%;max-width:600px;background-color:#f0f0f0;border:4px double black;padding:15px;box-sizing:border-box;z-index:20;font-family:monospace;color:black;opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s}#text-bubble-container.visible{opacity:1;visibility:visible}#text-bubble-content{white-space:pre-wrap;margin-bottom:10px;min-height:40px;font-size:1.1em}#arrow{align-self:flex-end;font-size:1.5em;color:black;animation:pulse 1s infinite;cursor:pointer;width:100%;text-align:right}#action-button{display:none;background-color:#00ff00;color:black;font-family:'Courier New',Courier,monospace;font-size:1.1em;font-weight:700;border:none;padding:10px 20px;margin-top:10px;cursor:pointer;transition:all .3s}#action-button:hover{box-shadow:0 0 15px #00ff00}@keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}
 </style>
 </head>
@@ -37,7 +36,6 @@
         const actionButton = document.getElementById('action-button');
         const MAX_TERMINAL_LINES = 20;
 
-        // --- Story Script (Forking Intro) ---
         const storyScript = [
             { type: 'WITCH', text: 'You understand you are the Kernel, the potential. But a single core cannot manage a world.' },
             { type: 'TERMINAL', text: '...Require... delegation?' },
@@ -51,7 +49,7 @@
 
         let currentStep = 0;
 
-        // --- Game Engine Functions (Identical to previous story pages) ---
+        // --- Game Engine Functions ---
         function typeToTerminal(text,onComplete,className=''){let i=0;const p=document.createElement('p');if(className){p.classList.add(className)}const oldCursor=terminalContent.querySelector('.cursor');if(oldCursor){oldCursor.remove()}terminalContent.appendChild(p);while(terminalContent.children.length>MAX_TERMINAL_LINES){terminalContent.removeChild(terminalContent.children[0])}function typeChar(){if(i<text.length){p.innerHTML+=text.charAt(i);i++;setTimeout(typeChar,30)}else{p.innerHTML+='<span class="cursor"></span>';if(onComplete){onComplete()}}}typeChar()}
         function showWitchMessage(text){witchContainer.classList.add('visible');bubbleContainer.classList.add('visible');bubbleContent.textContent=text;arrow.style.display='block';actionButton.style.display='none'}
         function hideWitch(){witchContainer.classList.remove('visible');bubbleContainer.classList.remove('visible')}
@@ -60,8 +58,7 @@
         function handleInput(){const step=storyScript[currentStep];if(step&&(step.type==='WITCH'||step.type==='ACTION')){currentStep++;nextStoryStep()}}
         document.addEventListener('keydown',event=>{if(event.key==='Enter'){handleInput()}});arrow.addEventListener('click',handleInput);
 
-        // --- Start the Story ---
-        witchContainer.classList.add('visible'); // Witch is present
+        witchContainer.classList.add('visible'); 
         nextStoryStep();
     </script>
 </body>

@@ -5,35 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matrix Rerum - The Load</title>
 <style>
-        /* This CSS is identical to new_webpage.html */
+       
         body {
             margin: 0;
             overflow: hidden;
             background-color: black;
-            display: flex; /* Use flexbox for layout */
+            display: flex; 
             justify-content: center;
             align-items: center;
             height: 100vh;
             font-family: 'Courier New', Courier, monospace;
             color: white;
             position: relative;
-            padding: 20px; /* Add some padding around the main content */
+            padding: 20px; 
             box-sizing: border-box;
         }
 
         #main-content {
-            display: flex; /* Flex container for terminal and witch */
+            display: flex; 
             width: 100%;
-            max-width: 1200px; /* Max width for the entire setup */
-            height: 95vh; /* Adjust height to fit better */
-            gap: 20px; /* Space between terminal and witch */
+            max-width: 1200px; 
+            height: 95vh; 
+            gap: 20px; 
             align-items: flex-start; /* Align items to the top if they have different heights */
             position: relative;
         }
 
         #terminal-container {
             flex: 2 1 60%; 
-            height: 100%; /* Take full height of main-content */
+            height: 100%; 
             background: #0a0a0a;
             border: 1px solid #00ff00;
             box-shadow: 0 0 10px #00ff00 inset;
@@ -191,7 +191,6 @@
         const arrow = document.getElementById('arrow');
         const actionButton = document.getElementById('action-button');
 
-        // --- Story Script (Act II) ---
         const storyScript = [
             { type: 'WITCH', text: 'You did well, OS-0. The heartbeats are steady.' },
             { type: 'TERMINAL', text: 'Receiving user requests... volume increasing.' },
@@ -214,7 +213,7 @@
 
         let currentStep = 0;
 
-        // --- Game Engine Functions (Identical to new_webpage.html) ---
+        // --- Game Engine Functions ---
 
         function typeToTerminal(text, onComplete) {
             let i = 0;
@@ -287,8 +286,6 @@
         
         arrow.addEventListener('click', handleInput);
 
-        // --- Start the Story ---
-        // Make the witch visible from the start this time
         witchContainer.classList.add('visible');
         nextStoryStep();
 

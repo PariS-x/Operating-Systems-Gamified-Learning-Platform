@@ -26,14 +26,14 @@
         }
         
         .mem-block {
-            background-color: #374151; /* Free block */
+            background-color: #374151; 
             border: 1px solid #111827;
             transition: background-color 0.3s ease;
         }
         
         /* Process block colors */
-        .mem-block.p-low { background-color: #2563EB; } /* Blue */
-        .mem-block.p-high { background-color: #DC2626; } /* Red */
+        .mem-block.p-low { background-color: #2563EB; } 
+        .mem-block.p-high { background-color: #DC2626; } 
         .mem-block.p-defrag { background-color: #FBBF24; animation: pulse 0.5s infinite alternate; } /* Yellow */
         
         /* Process list styles */
@@ -47,7 +47,7 @@
         }
         .process-item:hover { background-color: #4B5563; }
         .process-item.selected {
-            box-shadow: 0 0 0 3px #0EA5E9; /* Cyan highlight */
+            box-shadow: 0 0 0 3px #0EA5E9; 
             background-color: #4B5563;
         }
         
@@ -67,12 +67,12 @@
         /* Error/Success messages */
         #message-log {
             font-family: 'Courier New', Courier, monospace;
-            color: #F87171; /* Red for errors */
+            color: #F87171; 
             font-size: 0.9rem;
             min-height: 50px;
         }
-        #message-log .success { color: #34D399; } /* Green for success */
-        #message-log .warning { color: #FBBF24; } /* Yellow for warnings */
+        #message-log .success { color: #34D399; } 
+        #message-log .warning { color: #FBBF24; } 
         
     </style>
 </head>
@@ -160,17 +160,17 @@
     <script type="module">
         // --- Game Constants ---
         const MEMORY_SIZE = 100;
-        const WIN_CYCLES = 25;           // Harder: Less time
-        const WIN_LOADED = 18;           // Harder: Higher target
-        const LOSE_FAILED = 2;           // Harder: Less room for error
-        const DEFRAG_COST = 4;           // Harder: Defrag is more costly
+        const WIN_CYCLES = 30;          
+        const WIN_LOADED = 18;       
+        const LOSE_FAILED = 2;         
+        const DEFRAG_COST = 4;         
         const PROCESS_NAMES = ['Rift_Walker.exe', 'Chroma_Browser.exe', 'PicoTorrent.exe', 'AudioSrv.exe', 'NetworkMgr.exe', 'Render3D.exe', 'Compiler.exe', 'UserAuth.exe'];
-        const PROCESS_LIFETIME = { min: 4, max: 10 }; // Harder: More fragmentation
-        const PROCESS_SIZE = { min: 3, max: 15 };   // Harder: More difficult sizes
+        const PROCESS_LIFETIME = { min: 5, max: 10 };
+        const PROCESS_SIZE = { min: 3, max: 15 };  
         
         // --- Game State ---
-        let memory = Array(MEMORY_SIZE).fill(null); // null = free, 'pid' = used
-        let runningProcesses = new Map(); // Stores { pid, size, lifetime, priority, blocks: [index1, index2...] }
+        let memory = Array(MEMORY_SIZE).fill(null); 
+        let runningProcesses = new Map();
         let processQueue = []; // Stores { pid, name, size, priority }
         let nextPid = 1;
         let selectedProcess = null;
@@ -203,7 +203,7 @@
             terminateCancelBtn: document.getElementById('terminate-cancel-btn'),
         };
 
-        // --- Initialization ---
+       
         function init() {
             // Create memory grid
             for (let i = 0; i < MEMORY_SIZE; i++) {
@@ -214,13 +214,13 @@
                 block.onclick = () => onBlockClick(i);
                 dom.grid.appendChild(block);
             }
-            // Add listeners
+            // listeners
             dom.startBtn.onclick = startGame;
             dom.defragBtn.onclick = startDefrag;
             dom.terminateCancelBtn.onclick = cancelTermination;
         }
 
-        // --- Game Loop ---
+       
         function startGame() {
             if (state.trialStarted) return;
             state.trialStarted = true;
@@ -242,7 +242,7 @@
                     executeDefrag();
                 }
                 updateUI();
-                return; // System is "frozen"
+                return; // System is frozen
             }
 
             state.cyclesLeft--;
@@ -256,11 +256,11 @@
                 }
             });
             
-            // 2. Reap (free) finished processes
+            // 2. free finished processes
             pidsToReap.forEach(pid => freeProcess(pid));
             
             // 3. Try to spawn new process in queue
-            if (Math.random() < 0.65) { // Harder: 65% chance each tick
+            if (Math.random() < 0.65) { 
                 spawnProcessInQueue();
             }
             
@@ -276,7 +276,7 @@
         function spawnProcessInQueue() {
             if (processQueue.length >= 5) return; // Queue is full
             const pid = nextPid++;
-            const priority = Math.random() < 0.55 ? 'High' : 'Low'; // Harder: 35% chance of High Priority
+            const priority = Math.random() < 0.55 ? 'High' : 'Low'; 
             const process = {
                 pid: pid,
                 name: PROCESS_NAMES[Math.floor(Math.random() * PROCESS_NAMES.length)],
@@ -295,7 +295,6 @@
             
             selectedProcess = process;
             
-            // Try to load it
             loadProcess(process);
             renderQueue(); // To show selection
         }
@@ -304,17 +303,16 @@
             const blockIndex = findFirstFit(process.size);
             
             if (blockIndex !== -1) {
-                // Found space!
+                
                 placeProcess(process, blockIndex);
                 logMessage(`Loaded ${process.name} [${process.pid}]`, 'success');
                 state.loadedCount++;
                 
-                // Remove from queue
                 processQueue = processQueue.filter(p => p.pid !== process.pid);
                 selectedProcess = null;
                 
             } else {
-                // No space!
+               
                 if (process.priority === 'High') {
                     // High priority failure - check if user can terminate
                     if (canFreeSpaceFor(process.size)) {
@@ -347,7 +345,7 @@
                     consecutiveFree = 0;
                 }
             }
-            return -1; // No block found
+            return -1; 
         }
         
         function placeProcess(process, startIndex) {
@@ -385,7 +383,7 @@
         function failProcess(process, reason) {
             logMessage(`Failed to load ${process.name}! ${reason}`, 'error');
             state.failedCount++;
-            // Remove from queue
+          
             processQueue = processQueue.filter(p => p.pid !== process.pid);
             selectedProcess = null;
             state.awaitingTermination = null;
@@ -408,12 +406,11 @@
                 return;
             }
             
-            // Confirmed: Kill this Low Priority process
             logMessage(`Terminated ${processToKill.name} to make space.`, 'success');
             freeProcess(pid);
             dom.terminateModal.classList.add('hidden');
             
-            // Now, automatically try to load the waiting high-priority process
+            // automatically try to load the waiting high-priority process
             loadProcess(state.awaitingTermination);
             state.awaitingTermination = null;
             updateUI();
@@ -437,8 +434,6 @@
             });
             if (totalLowPrio === 0) return false;
             
-            // This is a simplified check. We just check if *any* low-prio process exists
-            // A real check would be much more complex.
             return true;
         }
         
@@ -488,7 +483,7 @@
         // --- UI & State ---
         
         function logMessage(msg, type = 'error') {
-            dom.messageLog.innerHTML = ''; // Clear
+            dom.messageLog.innerHTML = ''; 
             const p = document.createElement('p');
             p.textContent = `> ${msg}`;
             p.className = type;
@@ -542,7 +537,7 @@
             }
         }
         
-        // --- Start the app ---
+     
         init();
 
     </script>

@@ -57,26 +57,23 @@
             flex-shrink: 0; 
         }
 
-        /* UPDATED: More intense glitch effect */
         #terminal-content .terminal-corrupt {
             position: relative;
-            color: #ff4141; /* Base red color */
+            color: #ff4141; 
             text-shadow: 
                 0 0 5px #ff0000, 
-                0 0 10px #ff0000; /* Stronger glow */
+                0 0 10px #ff0000; 
             animation: 
-                glitch-text 0.6s infinite alternate, /* Main glitch animation */
-                glitch-flicker 0.2s infinite,       /* Rapid opacity flicker */
-                glitch-jitter 0.08s infinite alternate; /* Subtle, constant jitter */
+                glitch-text 0.6s infinite alternate, 
+                glitch-flicker 0.2s infinite,      
+                glitch-jitter 0.08s infinite alternate; 
             
-            /* Pseudo-elements for color shift and ghosting */
-            overflow: hidden; /* Hide overflow from pseudo-elements */
+            overflow: hidden; 
         }
 
-        /* Glitch - Color Shift & Ghosting */
         #terminal-content .terminal-corrupt::before,
         #terminal-content .terminal-corrupt::after {
-            content: attr(data-text); /* Use the text content for pseudo-elements */
+            content: attr(data-text); 
             position: absolute;
             top: 0;
             left: 0;
@@ -86,7 +83,7 @@
         }
 
         #terminal-content .terminal-corrupt::before {
-            color: #00ffff; /* Cyan shift */
+            color: #00ffff; 
             z-index: -1;
             animation: 
                 glitch-shadow-blue 0.8s infinite alternate,
@@ -94,14 +91,13 @@
         }
 
         #terminal-content .terminal-corrupt::after {
-            color: #ff00ff; /* Magenta shift */
+            color: #ff00ff; 
             z-index: -2;
             animation: 
                 glitch-shadow-red 1s infinite alternate,
                 glitch-flicker 0.4s infinite;
         }
 
-        /* Keyframes for the new glitch effects */
         @keyframes glitch-text {
             0% { transform: translate(0, 0); text-shadow: 0 0 5px #ff0000; }
             20% { transform: translate(-2px, 2px); text-shadow: 0 0 15px #ff0000; }
@@ -149,7 +145,6 @@
             100% { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
         }
         
-        /* Log file text remains normal */
         #terminal-content .terminal-log {
             color: #fde047; 
         }
@@ -295,10 +290,8 @@
         const arrow = document.getElementById('arrow');
         const actionButton = document.getElementById('action-button');
 
-        // NEW: Max lines for terminal
         const MAX_TERMINAL_LINES = 20; 
 
-        // --- Story Script (Act III) ---
         const storyScript = [
             { type: 'TERMINAL', text: 'Memory stability achieved. System load nominal.' },
             { type: 'WITCH', text: 'You have learned discipline, OS-0. You have learned...' },
@@ -338,7 +331,6 @@
 
         // --- Game Engine Functions ---
 
-        // UPDATED to support max lines
         function typeToTerminal(text, onComplete, className = '') {
             let i = 0;
             const p = document.createElement('p');
@@ -351,7 +343,6 @@
 
             terminalContent.appendChild(p);
 
-            // NEW: Trim oldest lines if over MAX_TERMINAL_LINES
             while (terminalContent.children.length > MAX_TERMINAL_LINES) {
                 terminalContent.removeChild(terminalContent.children[0]);
             }
@@ -403,7 +394,7 @@
                     typeToTerminal(step.text, () => {
                         currentStep++;
                         setTimeout(nextStoryStep, 500); 
-                    }, step.class || ''); // Pass the class if it exists
+                    }, step.class || '');
                     break;
                 case 'WITCH':
                     showWitchMessage(step.text);
@@ -434,7 +425,6 @@
         
         arrow.addEventListener('click', handleInput);
 
-        // --- Start the Story ---
         witchContainer.classList.add('visible');
         nextStoryStep();
 

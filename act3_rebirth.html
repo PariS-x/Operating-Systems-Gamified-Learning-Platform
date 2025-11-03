@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-        /* CSS is identical to previous story pages, including glitch effects */
         body {
             margin: 0;
             overflow: hidden;
@@ -72,7 +71,7 @@
         }
         
         #terminal-content .terminal-sentinel {
-             color: #34D399; /* Sentinel Green */
+             color: #34D399; 
              text-shadow: 0 0 5px #34D399;
         }
 
@@ -228,7 +227,6 @@
 
         const MAX_TERMINAL_LINES = 15; 
 
-        // --- Story Script (Act III - Rebirth) ---
         const storyScript = [
             { type: 'TERMINAL', text: 'Deadlock resolved. System recovering...' },
             { type: 'TERMINAL', text: 'Analyzing failure cascade... Root cause: Circular Wait.' },
@@ -249,7 +247,7 @@
 
         let currentStep = 0;
 
-        // --- Game Engine Functions (Identical to previous story pages) ---
+        // --- Game Engine Functions ---
         
         function typeToTerminal(text, onComplete, className = '') {
             let i = 0;
@@ -287,7 +285,6 @@
             actionButton.style.display = 'none';
         }
         
-        // Hide Witch function (not used here, but kept for consistency)
         function hideWitch() {
             witchContainer.classList.remove('visible');
             bubbleContainer.classList.remove('visible');
@@ -295,7 +292,7 @@
 
         function showAction(text, href) {
             bubbleContainer.classList.add('visible');
-            bubbleContent.textContent = "The system awaits your command."; // Changed text
+            bubbleContent.textContent = "The system awaits your command."; 
             arrow.style.display = 'none';
             actionButton.style.display = 'block';
             actionButton.textContent = text;
@@ -311,9 +308,7 @@
             switch(step.type) {
                 case 'TERMINAL':
                     bubbleContainer.classList.remove('visible');
-                    // Show Witch only when she speaks
                     if (step.class === 'terminal-sentinel' && !witchContainer.classList.contains('visible')) {
-                         // No automatic witch appearance here
                     }
                     typeToTerminal(step.text, () => {
                         currentStep++;
@@ -323,7 +318,6 @@
                 case 'WITCH':
                     showWitchMessage(step.text); // Witch appears when she speaks
                     break;
-                // Removed FADE_OUT case for this Act
                 case 'ACTION':
                     showAction(step.text, step.href);
                     break;
@@ -345,8 +339,6 @@
         
         arrow.addEventListener('click', handleInput);
 
-        // --- Start the Story ---
-        // Witch does not appear initially
         nextStoryStep();
 
     </script>

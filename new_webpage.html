@@ -9,33 +9,31 @@
             margin: 0;
             overflow: hidden;
             background-color: black;
-            display: flex; /* Use flexbox for layout */
+            display: flex; 
             justify-content: center;
             align-items: center;
             height: 100vh;
             font-family: 'Courier New', Courier, monospace;
             color: white;
             position: relative;
-            padding: 20px; /* Add some padding around the main content */
+            padding: 20px; 
             box-sizing: border-box;
         }
 
         #main-content {
-            display: flex; /* Flex container for terminal and witch */
+            display: flex;
             width: 100%;
-            max-width: 1200px; /* Max width for the entire setup */
-            height: 95vh; /* Adjust height to fit better */
-            gap: 20px; /* Space between terminal and witch */
-            align-items: flex-start; /* Align items to the top if they have different heights */
+            max-width: 1200px; 
+            height: 95vh; 
+            gap: 20px; 
+            align-items: flex-start;
             position: relative;
         }
 
-        /* Terminal --- CHANGE HERE --- */
+      
         #terminal-container {
-            /* We'll use flex-basis to set a desired width */
-            /* It will take 60% of the space, the witch 40% */
             flex: 2 1 60%; 
-            height: 100%; /* Take full height of main-content */
+            height: 100%; 
             background: #0a0a0a;
             border: 1px solid #00ff00;
             box-shadow: 0 0 10px #00ff00 inset;
@@ -66,9 +64,8 @@
             50% { background-color: #00ff00; }
         }
 
-        /* Witch Container --- CHANGE HERE --- */
+       
         #witch-side-container {
-            /* This will now take 40% of the space */
             flex: 1 1 45%;
             display: flex;
             flex-direction: column;
@@ -79,7 +76,7 @@
             transition: opacity 2s ease-in-out;
             position: relative; 
             padding-top: 50px; 
-            /* Removed fixed width: 350px; */
+           
         }
         
         #witch-side-container.visible {
@@ -87,7 +84,7 @@
         }
 
         #witch-image {
-            /* This will now fill its larger (40%) container */
+            
             max-width: 100%; 
             height: auto;
             display: block;
@@ -102,8 +99,6 @@
             animation: float 3s ease-in-out infinite;
         }
 
-
-        /* Text Bubble (No changes) */
         #text-bubble-container {
             position: absolute; 
             bottom: 30px;
@@ -193,15 +188,14 @@
 <script>
         // --- DOM Elements ---
         const terminalContent = document.getElementById('terminal-content');
-        const witchContainer = document.getElementById('witch-side-container'); // Corrected ID usage
+        const witchContainer = document.getElementById('witch-side-container'); 
         const bubbleContainer = document.getElementById('text-bubble-container');
         const bubbleContent = document.getElementById('text-bubble-content');
         const arrow = document.getElementById('arrow');
         const actionButton = document.getElementById('action-button');
-        const MAX_TERMINAL_LINES = 15; // Assuming you want the line limit here too
+        const MAX_TERMINAL_LINES = 15; 
 
-        // --- Story Script (Act I - Always starts with Forking Intro path) ---
-        const storyScript = [ // Use const again, always this version
+        const storyScript = [ 
             { type: 'TERMINAL', text: 'Initializing Core Systems... [BIOS Handover Complete]' },
             { type: 'TERMINAL', text: 'Loading Kernel... [v0.1 Alpha]' },
             { type: 'TERMINAL', text: 'Setting up Memory Map... [OK]' },
@@ -222,12 +216,11 @@
 
         let currentStep = 0;
 
-        // --- Game Engine Functions ---
-        // Added max lines logic to typeToTerminal
-        function typeToTerminal(text, onComplete, className = '') { // Added className parameter back
+       
+        function typeToTerminal(text, onComplete, className = '') { 
             let i = 0;
             const p = document.createElement('p');
-             if (className) { // Check if className exists before adding
+             if (className) { 
                 p.classList.add(className);
             }
             terminalContent.appendChild(p);
@@ -254,7 +247,6 @@
             typeChar();
         }
 
-        // Function to show witch dialogue
         function showWitchMessage(text) {
             witchContainer.classList.add('visible');
             bubbleContainer.classList.add('visible');
@@ -263,7 +255,6 @@
             actionButton.style.display = 'none';
         }
 
-        // Function to show an action button
         function showAction(text, href) {
             bubbleContainer.classList.add('visible');
             bubbleContent.textContent = "What will you do?";
@@ -276,43 +267,32 @@
             };
         }
 
-        // Main function to advance the story
         function nextStoryStep() {
             if (currentStep >= storyScript.length) return;
 
             const step = storyScript[currentStep];
 
             if (step.type === 'TERMINAL') {
-                bubbleContainer.classList.remove('visible'); // Hide bubble during terminal text
-                // Pass optional class name to typeToTerminal
+                bubbleContainer.classList.remove('visible'); 
                 typeToTerminal(step.text, () => {
-                    // Auto-advance to next step after typing
                     currentStep++;
-                    // Add a small delay before the next step for pacing
                     setTimeout(nextStoryStep, 500);
-                }, step.class || ''); // Use step.class if it exists
+                }, step.class || ''); 
             } else if (step.type === 'WITCH') {
                 showWitchMessage(step.text);
-                // We DON'T advance currentStep here. We wait for user input.
             } else if (step.type === 'ACTION') {
                 showAction(step.text, step.href);
-                // We DON'T advance. We wait for user to click the button.
             }
         }
 
-        // --- Event Listener ---
-        // **** THIS IS THE FIX ****
         function handleInput() {
             const step = storyScript[currentStep];
-            // Only advance if it's a Witch step or an Action step
             if (step && (step.type === 'WITCH' || step.type === 'ACTION')) {
-                // REMOVED the empty if block that referenced forkingComplete
                 currentStep++;
                 nextStoryStep();
             }
         }
 
-        // Listen for Enter key or click
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 handleInput();
@@ -321,8 +301,6 @@
 
         arrow.addEventListener('click', handleInput);
 
-        // --- Start the Story ---
-        // Witch does not appear until her line in the script
         nextStoryStep();
 
     </script>

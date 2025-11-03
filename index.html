@@ -6,15 +6,12 @@
     <title>Matrix Rerum Login</title>
 </head>
 <style>
-    /* ... (CSS is unchanged, keeping the glow, body, footer, and modal styles) ... */
-    /* KEYFRAME ANIMATION for the glow effect */
     @keyframes glow {
         0% { box-shadow: 0 0 5px rgba(42, 223, 36, 0.5); }
         50% { box-shadow: 0 0 20px rgba(42, 223, 36, 0.8), 0 0 30px rgba(42, 223, 36, 0.6); }
         100% { box-shadow: 0 0 5px rgba(42, 223, 36, 0.5); }
     }
 
-    /* GENERAL STYLES */
     body {
         background-color: black;
         color: white;
@@ -26,7 +23,6 @@
         padding-top: 15%;
     }
 
-    /* Input fields now have IDs and placeholders */
     #username, #password {
         background-color: transparent;
         border: 1px solid rgb(42, 223, 36);
@@ -36,7 +32,6 @@
         text-align: center;
     }
 
-    /* NEW: Style for the LOGIN button */
     #loginButton {
         background-color: rgb(239, 239, 239);
         color: black;
@@ -52,7 +47,6 @@
         background-color: rgb(36, 180, 30);
     }
 
-    /* HINT LINK STYLE */
     #hint {
         color: rgb(42, 223, 36);
         text-decoration: none; 
@@ -60,7 +54,6 @@
         padding: 10px;
     }
 
-    /* FOOTER STYLES */
     footer {
         color: red;
         font-family: monospace;
@@ -70,7 +63,6 @@
         padding: 10px;
     }
 
-    /* MODAL (POP-UP) STYLES */
     .modal {
         display: none; 
         position: fixed; 
@@ -96,7 +88,6 @@
         animation: glow 3s infinite alternate; 
     }
 
-    /* CLOSE BUTTON STYLES */
     .close {
         color: #aaa;
         float: right;
@@ -145,7 +136,6 @@
     <script>
         const loginForm = document.getElementById('loginForm');
 
-        // Function to handle the login attempt using the server
         async function handleLogin(event) {
             // Prevent the default form submission (which reloads the page)
             event.preventDefault(); 
@@ -154,23 +144,19 @@
             const password = document.getElementById('password').value.trim();
 
             try {
-                // Send the data to the server's /login route
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json' // Tell the server the data is JSON
+                        'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify({ username, password }) // Send the credentials as JSON
+                    body: JSON.stringify({ username, password }) 
                 });
 
                 const result = await response.json();
 
-                // Check the success status returned by the server
                 if (result.success) {
-                    // Redirect to the success page as told by the server
                     window.location.href = result.redirect; 
                 } else {
-                    // Redirect to the failure page as told by the server
                     window.location.href = result.redirect; 
                 }
 
@@ -180,7 +166,6 @@
             }
         }
 
-        // Attach the function to the form's submit event
         loginForm.addEventListener('submit', handleLogin);
     </script>
 </body>

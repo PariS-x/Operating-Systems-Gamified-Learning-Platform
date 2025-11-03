@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-        /* This CSS is identical to act3_story.html */
         body {
             margin: 0;
             overflow: hidden;
@@ -60,7 +59,6 @@
             flex-shrink: 0; 
         }
 
-        /* Glitch/Corrupt styles (kept in case you want to use them) */
         #terminal-content .terminal-corrupt {
             color: #ff4141; 
             text-shadow: 0 0 5px #ff0000;
@@ -68,9 +66,8 @@
             position: relative; 
         }
         
-        /* NEW: Style for "Ascension" text */
         #terminal-content .terminal-ascend {
-            color: #67e8f9; /* Bright Cyan */
+            color: #67e8f9; 
             text-shadow: 0 0 8px #0ea5e9;
         }
 
@@ -225,7 +222,6 @@
 
         const MAX_TERMINAL_LINES = 15; 
 
-// --- Story Script (Act IV - Revised) ---
         const storyScript = [
             { type: 'TERMINAL', text: 'Re-establishing core protocols... SENTINEL protocols.' , class: 'terminal-sentinel'},
             { type: 'TERMINAL', text: 'Scanning network... reaching... outside...' },
@@ -310,7 +306,6 @@
             };
         }
 
-        // UPDATED to handle new types
         function nextStoryStep() {
             if (currentStep >= storyScript.length) return;
             const step = storyScript[currentStep];
@@ -355,8 +350,6 @@
         
         arrow.addEventListener('click', handleInput);
 
-        // --- Start the Story ---
-        // Witch appears *after* you see yourself as SENTINEL
         nextStoryStep();
 
     </script>
