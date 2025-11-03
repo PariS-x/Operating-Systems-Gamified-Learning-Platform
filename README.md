@@ -1,0 +1,1 @@
+"Matrix Rerum," addresses provided a web-based, interactive learning platform. It reframes OS education as a gamified, narrative-driven experience. Instead of reading chapters in a textbook, the user "becomes" a nascent operating system, learning to manage itself and its tasks through a series of interactive "trials" and a compelling story.
